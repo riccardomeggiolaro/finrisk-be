@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload to Google Drive</title>
+    <style>
+        #progressBar {
+            width: 300px;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #progressFill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload File to Google Drive</h1>
+    <input type="file" id="fileInput" accept=".csv">
+    <button onclick="uploadFile()">Upload</button>
+    <div id="progressBar">
+        <div id="progressFill"></div>
+    </div>
+    <p id="status"></p>
+
+    <script>
+function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('Please select a file first.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const uploadUrl = 'http://localhost:3000/api/drive/upload';
+
+    const statusElement = document.getElementById('status');
+    const progressFill = document.getElementById('progressFill');
+
+    statusElement.textContent = 'Initiating upload...';
+
+    let eventSource = null;
+
+    function closeEventSource() {
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+    }
+
+    // XHR per l'invio del file
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', uploadUrl, true);
+    xhr.send(formData);
+
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200 || xhr.status === 201) {
+                console.log('Upload initiated successfully');
+                statusElement.textContent = 'Upload started. Waiting for progress...';
+                
+                eventSource = new EventSource(uploadUrl);
+
+                eventSource.onopen = (event) => {
+                    console.log('EventSource connection opened:', event);
+                };
+
+                eventSource.onerror = (event) => {
+                    console.error('EventSource error:', event);
+                    if (eventSource.readyState === EventSource.CLOSED) {
+                        console.log('EventSource connection was closed');
+                    } else {
+                        statusElement.textContent = 'Error in progress updates';
+                    }
+                    closeEventSource();
+                };
+
+                eventSource.addEventListener('progress', (event) => {
+                    console.log('Received progress event:', event);
+                    const { progress } = JSON.parse(event.data);
+                    console.log(`Upload progress: ${progress}%`);
+                    statusElement.textContent = `Uploading: ${progress}%`;
+                    progressFill.style.width = `${progress}%`;
+                });
+
+                eventSource.addEventListener('complete', (event) => {
+                    console.log('Received complete event:', event);
+                    const { message } = JSON.parse(event.data);
+                    console.log(message);
+                    statusElement.textContent = 'Upload completed successfully';
+                    closeEventSource();
+                });
+
+                eventSource.addEventListener('error', (event) => {
+                    console.log('Received error event:', event);
+                    const { message } = JSON.parse(event.data);
+                    console.error('Upload error:', message);
+                    statusElement.textContent = `Error: ${message}`;
+                    closeEventSource();
+                });
+
+                eventSource.addEventListener('close', (event) => {
+                    console.log('Received close event:', event);
+                    const { message } = JSON.parse(event.data);
+                    console.error('Upload close:', message);
+                    statusElement.textContent = `Close: ${message}`;
+                    closeEventSource();
+                });
+            } else {
+                console.error('XHR Error:', xhr.status, xhr.statusText);
+                statusElement.textContent = `Error initiating upload: ${xhr.status} ${xhr.statusText}`;
+            }
+        }
+    };
+
+    // Aggiungi un gestore per la chiusura della finestra o il cambio di pagina
+    window.addEventListener('beforeunload', closeEventSource);
+}
+    </script>
+</body>
+</html>
