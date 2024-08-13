@@ -14,7 +14,7 @@ export class DriveController {
     async uploadFile(
       @UploadedFile(new FileCsvPipe()) file: File,
       @Res() res: FastifyReply,
-    ): Promise<string> {
+    ): Promise<void> {
       res.raw.setHeader('Content-Type', 'text/event-stream');
       res.raw.setHeader('Cache-Control', 'no-cache');
       res.raw.setHeader('Connection', 'keep-alive');
@@ -29,11 +29,10 @@ export class DriveController {
       try {
         (await this.driveService.upload(file)).subscribe({
           next: (progress: number) => {
-            // console.log(`Sending progress: ${progress}`);
-            sendEvent('progress', { progress: Number(progress.toFixed(2)) });
+            if (progress === 100) sendEvent('complete', { message: 'Upload completed successfully' });
+            else sendEvent('progress', { progress: Number(progress.toFixed(2)) });
           },
           complete: () => {
-            // console.log('Upload completed');
             sendEvent('complete', { message: 'Upload completed successfully' });
           },
           error: (error: Error) => {
@@ -46,7 +45,6 @@ export class DriveController {
         sendEvent('error', { message: 'Failed to initiate upload' });
         res.raw.end();
       }
-      return "efikefi"
     }  
 
     @Get('find/:fileName')
