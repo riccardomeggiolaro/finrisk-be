@@ -4,9 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
 import { GoogleServiceAccount } from '../interface/google.interface';
 import { DriveAbstractService } from './drive.abstract.service';
-import { Readable } from 'stream';
-import { Observable, Observer } from 'rxjs';
 import { File } from '@nest-lab/fastify-multer';
+import { Readable } from 'stream';
+import { Observable } from 'rxjs';
+
+const CHUNK_SIZE = 2 * 1024 * 1024; // 5 MB
 
 @Injectable()
 export class GoogleDriveService extends DriveAbstractService {
@@ -51,82 +53,78 @@ export class GoogleDriveService extends DriveAbstractService {
         }
     }
     
-    private calculateChunkSize(fileSize: number): number {
-      const MIN_CHUNK_SIZE = 256 * 1024; // 256 KB
-      const MAX_CHUNK_SIZE = 100 * 1024 * 1024; // 100 MB
-      const BASE_SIZE = 10 * 1024 * 1024; // 10 MB
-  
-      if (fileSize <= BASE_SIZE) {
-          return fileSize;
-      }
-  
-      const chunkSize = Math.floor(BASE_SIZE / Math.log(fileSize));
-      return Math.min(Math.max(chunkSize, MIN_CHUNK_SIZE), MAX_CHUNK_SIZE);
+    private createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = CHUNK_SIZE): Readable {
+      let currentPosition = 0;
+    
+      const readableStream = new Readable({
+        read() {
+          // Se la posizione corrente è oltre la lunghezza del buffer, termina lo stream
+          if (currentPosition >= buffer.length) {
+            this.push(null);
+          } else {
+            // Calcola il prossimo chunk da inviare
+            const end = Math.min(currentPosition + chunkSize, buffer.length);
+            const chunk = buffer.slice(currentPosition, end);
+            this.push(chunk);
+            currentPosition = end;
+          }
+        }
+      });
+    
+      return readableStream;
     }
 
     async upload(file: File): Promise<Observable<number>> {
-        return new Observable<number>((observer: Observer<number>) => {
-          this.authorize().then(drive => {
-            const fileSize = file.size;
-            const chunkSize = this.calculateChunkSize(fileSize);
-            let start = 0;
-            let uploadedBytes = 0;
-    
-            drive.files.create({
-              requestBody: {
-                name: file.originalname,
-                parents: [this.FOLDER_ID],
-              },
-              media: {
-                mimeType: file.mimetype,
-              },
-              fields: 'id',
-            }).then(res => {
-              const fileId = res.data.id;
-    
-              const uploadChunk = () => {
-                if (start < fileSize) {
-                  const end = Math.min(start + chunkSize, fileSize);
-                  const chunk = file.buffer.slice(start, end);
-                  const chunkStream = new Readable();
-                  chunkStream.push(chunk);
-                  chunkStream.push(null);
-    
-                  drive.files.update({
-                    fileId: fileId,
-                    media: {
-                      body: chunkStream,
-                    },
-                    addParents: this.FOLDER_ID,
-                  }, {
-                    headers: {
-                      'Content-Range': `bytes ${start}-${end - 1}/${fileSize}`,
-                    },
-                  }).then(() => {
-                    uploadedBytes += (end - start);
-                    const progress = (uploadedBytes / fileSize) * 100;
-                    observer.next(progress);
-    
-                    start = end;
-                    uploadChunk();
-                  }).catch(error => {
-                    observer.error(error);
-                  });
-                } else {
-                  observer.complete();
-                }
-              };
-    
-              uploadChunk();
-            }).catch(error => {
-              observer.error(error);
-            });
-          }).catch(error => {
-            observer.error(error);
-          });
-        });
-      }    
-    
+      const fileMetadata = {
+        name: file.originalname,
+        parents: [this.FOLDER_ID]
+      };
+
+      const fileStream = this.createReadStreamFromBuffer(file.buffer);
+
+      const media = {
+        mimeType: 'text/csv',
+        body: fileStream,
+      };
+
+      const create = async (
+        drive: { files: { create: (arg0: { requestBody: { name: string; parents: string[]; }; media: { mimeType: string; body: Readable; }; fields: string; }, arg1: { onUploadProgress: (progressEvent: any) => void; }) => any; }; }, 
+        onUploadProgress: { onUploadProgress: (progressEvent: any) => void; }
+      ) => {
+        const res = await drive.files.create(
+          {
+            requestBody: fileMetadata,
+            media: media,
+            fields: 'id',
+          },
+          onUploadProgress
+        );
+        return res;
+      }
+
+      return new Observable<number>(observer => {
+        (async () => {
+          try {
+            const drive = await this.authorize();
+            const res = await create(
+              drive,
+              {
+                onUploadProgress: (progressEvent: { bytesRead: number; }) => {
+                  const progress = progressEvent.bytesRead / file.size * 100;
+                  observer.next(progress);
+                },
+              }
+            )
+            return res.data.id;
+          } catch (err) {
+            console.log
+            observer.error(err);
+          } finally {
+            observer.complete();
+          }
+        })();
+      })
+    }
 
     async findFile(fileName: string): Promise<string> {
         const drive = await this.authorize();

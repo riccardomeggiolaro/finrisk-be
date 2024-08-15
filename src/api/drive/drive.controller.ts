@@ -45,7 +45,7 @@ export class DriveController {
         sendEvent('error', { message: 'Failed to initiate upload' });
         res.raw.end();
       }
-    }  
+    }
 
     @Get('find/:fileName')
     async findFile(@Param('fileName') fileName: string): Promise<{fileId: string}> {
