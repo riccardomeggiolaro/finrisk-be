@@ -24,6 +24,8 @@ async function bootstrap() {
     exposedHeaders: ['Content-Type', 'Content-Length', 'Content-Disposition'],
     credentials: true,
   });
+  app.register(fastifyCsrf as any);
+  app.register(helmet as any);
   app.setGlobalPrefix('api');
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   await app.listen(process.env.PORT || 3000, '0.0.0.0');

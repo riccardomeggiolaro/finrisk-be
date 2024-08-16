@@ -26,25 +26,21 @@ export class DriveController {
         res.raw.write(eventString);
       };
   
-      try {
-        (await this.driveService.upload(file)).subscribe({
-          next: (progress: number) => {
-            if (progress === 100) sendEvent('complete', { message: 'Upload completed successfully' });
-            else sendEvent('progress', { progress: Number(progress.toFixed(2)) });
-          },
-          complete: () => {
-            sendEvent('complete', { message: 'Upload completed successfully' });
-          },
-          error: (error: Error) => {
-            // console.error('Upload error:', error);
-            sendEvent('error', { message: error.message });
-          }
-        });
-      } catch (error) {
-        // console.error('Error initiating upload:', error);
-        sendEvent('error', { message: 'Failed to initiate upload' });
-        res.raw.end();
-      }
+      (await this.driveService.upload(file)).subscribe({
+        next: (progress: number) => {
+          if (progress === 100) sendEvent('complete', { message: 'Upload completed successfully' });
+          else sendEvent('progress', { progress: Number(progress.toFixed(2)) });
+        },
+        complete: () => {
+          sendEvent('complete', { message: 'Upload completed successfully' });
+          res.raw.end();
+        },
+        error: (error: Error) => {
+          // console.error('Upload error:', error);
+          sendEvent('error', { message: error.message });
+          res.raw.end();
+        }
+      });
     }
 
     @Get('find/:fileName')
