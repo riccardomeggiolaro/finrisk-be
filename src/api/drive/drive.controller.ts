@@ -1,9 +1,9 @@
 /* eslint-disable prettier/prettier */
 import { FileInterceptor, File } from '@nest-lab/fastify-multer';
-import { Controller, Get, Param, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, Post, Req, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileCsvPipe } from 'src/core/pipes/file-csv.pipe';
 import { DriveAbstractService } from 'src/modules/drive/service/drive.abstract.service';
-import { FastifyReply } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
 
 @Controller('drive')
 export class DriveController {
@@ -13,33 +13,40 @@ export class DriveController {
     @UseInterceptors(FileInterceptor('file'))
     async uploadFile(
       @UploadedFile(new FileCsvPipe()) file: File,
-      @Res() res: FastifyReply,
+      @Req() req: FastifyRequest,
+      @Res({ passthrough: true }) res: FastifyReply,
     ): Promise<void> {
+
       res.raw.setHeader('Content-Type', 'text/event-stream');
       res.raw.setHeader('Cache-Control', 'no-cache');
       res.raw.setHeader('Connection', 'keep-alive');
       res.raw.setHeader('Access-Control-Allow-Origin', '*');
-  
+    
       const sendEvent = (eventType: string, data: any) => {
         const eventString = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
-        // console.log('Sending event:', eventString);
         res.raw.write(eventString);
       };
+    
+      const { progress$, finalId } = await this.driveService.upload(file);
   
-      (await this.driveService.upload(file)).subscribe({
-        next: (progress: number) => {
-          if (progress === 100) sendEvent('complete', { message: 'Upload completed successfully' });
-          else sendEvent('progress', { progress: Number(progress.toFixed(2)) });
-        },
-        complete: () => {
-          sendEvent('complete', { message: 'Upload completed successfully' });
-          res.raw.end();
-        },
-        error: (error: Error) => {
-          // console.error('Upload error:', error);
-          sendEvent('error', { message: error.message });
-          res.raw.end();
-        }
+      await new Promise<void>((resolve, reject) => {
+        progress$.subscribe({
+          next: (progress: number) => {
+            sendEvent('progress', { progress: Number(progress.toFixed(2)) });
+          },
+          error: (error: Error) => {
+            console.error('Upload error:', error);
+            sendEvent('error', { message: error.message });
+            reject(error);
+            res.raw.end();
+          },
+          complete: async () => {
+            const fileId = await finalId;
+            sendEvent('complete', { fileId });
+            resolve();
+            res.raw.end();
+          }
+        });
       });
     }
 

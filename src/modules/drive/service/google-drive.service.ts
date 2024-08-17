@@ -97,7 +97,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async upload(file: File): Promise<Observable<number>> {
+    async upload(file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
       const fileMetadata = {
         name: file.originalname,
         parents: [this.FOLDER_ID]
@@ -112,26 +112,28 @@ export class GoogleDriveService extends DriveAbstractService {
 
       const drive = await this.authorize();
 
-      return new Observable<number>(observer => {
-        (async () => {
-          try {
-            const res = await this.createNewFile(
-              drive, fileMetadata, media,
-              {
-                onUploadProgress: (progressEvent: { bytesRead: number; }) => {
-                  const progress = progressEvent.bytesRead / file.size * 100;
-                  observer.next(progress);
-                },
-              }
-            )
-            return res.data.id;
-          } catch (err) {
-            observer.error(err);
-          } finally {
-            observer.complete();
-          }
+      let resolveId: (value: string) => void;
+      const finalId = new Promise<string>((resolve) => {
+        resolveId = resolve;
+      });
+
+      const progress$ = new Observable<number>(observer => {
+        (async() => {
+          const res = await this.createNewFile(
+            drive, fileMetadata, media,
+            {
+              onUploadProgress: (progressEvent: { bytesRead: number; }) => {
+                const progress = progressEvent.bytesRead / file.size * 100;
+                observer.next(progress);
+              },
+            }
+          );
+          observer.complete();
+          resolveId(res.data.id);
         })();
-      })
+      });
+    
+      return { progress$, finalId };
     }
 
     async findFile(fileName: string): Promise<string> {

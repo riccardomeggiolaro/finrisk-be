@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 
 @Injectable()
 export abstract class DriveAbstractService {
-    abstract upload(file: File): Promise<Observable<number>>;
+    abstract upload(file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
     abstract findFile(fileName: string): Promise<string>;
     abstract existFile(fileName: string): Promise<boolean>;
 }
