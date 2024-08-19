@@ -1,11 +1,10 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
-import { GoogleServiceAccount } from '../interface/google.interface';
+import { FileFoundResponse, GoogleServiceAccount } from '../interface/google.interface';
 import { DriveAbstractService } from './drive.abstract.service';
 import { File } from '@nest-lab/fastify-multer';
-import { Readable } from 'stream';
 import { Observable } from 'rxjs';
 import { ExternalServiceException } from 'src/core/exceptions/external-service.exception';
 
@@ -38,66 +37,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    private async find(drive: any, fileName: string): Promise<string | null> {
-      try {
-          const response = await drive.files.list({
-              q: `name='${fileName}' and '${this.FOLDER_ID}' in parents and trashed=false`,
-              fields: 'files(id, name)',
-              spaces: 'drive'
-          });
-
-          if (response.data.files.length > 0) {
-              return response.data.files[0].id;
-          } else {
-              return null;
-          }
-      } catch (err) {
-        throw new ExternalServiceException(err.message, this.SCOPE[0]);
-      }
-    }
-    
-    private createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = 2 * 1024 * 1024): Readable {
-      let currentPosition = 0;
-    
-      const readableStream = new Readable({
-        read() {
-          // Se la posizione corrente è oltre la lunghezza del buffer, termina lo stream
-          if (currentPosition >= buffer.length) {
-            this.push(null);
-          } else {
-            // Calcola il prossimo chunk da inviare
-            const end = Math.min(currentPosition + chunkSize, buffer.length);
-            const chunk = buffer.slice(currentPosition, end);
-            this.push(chunk);
-            currentPosition = end;
-          }
-        }
-      });
-    
-      return readableStream;
-    }
-
-    private async createNewFile(
-      drive: { files: { create: (arg0: { requestBody: { name: string; parents: string[]; }; media: { mimeType: string; body: Readable; }; fields: string; }, arg1: { onUploadProgress: (progressEvent: any) => void; }) => any; }; }, 
-      fileMetadata: { name: string, parents: string[] },
-      media: { mimeType: string, body: Readable },
-      onUploadProgress: { onUploadProgress: ((progressEvent: any) => void) | ((progressEvent: { bytesRead: number; }) => void); }) {
-      try {
-        const res = await drive.files.create(
-          {
-            requestBody: fileMetadata,
-            media: media,
-            fields: 'id',
-          },
-          onUploadProgress
-        );
-        return res;
-      } catch (err) {
-        throw new ExternalServiceException(err.message, this.SCOPE[0]);
-      }
-    }
-
-    async upload(file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
+    async create(file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
       const fileMetadata = {
         name: file.originalname,
         parents: [this.FOLDER_ID]
@@ -110,42 +50,128 @@ export class GoogleDriveService extends DriveAbstractService {
         body: fileStream,
       };
 
-      const drive = await this.authorize();
+      try {
+        const drive = await this.authorize();
 
-      let resolveId: (value: string) => void;
-      const finalId = new Promise<string>((resolve) => {
-        resolveId = resolve;
-      });
-
-      const progress$ = new Observable<number>(observer => {
-        (async() => {
-          const res = await this.createNewFile(
-            drive, fileMetadata, media,
-            {
-              onUploadProgress: (progressEvent: { bytesRead: number; }) => {
-                const progress = progressEvent.bytesRead / file.size * 100;
-                observer.next(progress);
+        let resolveId: (value: string) => void;
+        const finalId = new Promise<string>((resolve) => {
+          resolveId = resolve;
+        });
+  
+        const progress$ = new Observable<number>(observer => {
+          (async() => {
+            const res = await drive.files.create(
+              {
+                requestBody: fileMetadata,
+                media: media,
+                fields: 'id',
               },
-            }
-          );
-          observer.complete();
-          resolveId(res.data.id);
-        })();
-      });
+              {
+                onUploadProgress: (progressEvent: { bytesRead: number; }) => {
+                  const progress = progressEvent.bytesRead / file.size * 100;
+                  console.log(progress);
+                  observer.next(progress);
+                },
+              }
+            );
+            observer.complete();
+            resolveId(res.data.id);
+          })();
+        });
+      
+        return { progress$, finalId };
+      } catch (err) {
+        throw new ExternalServiceException(err.message, this.SCOPE[0]);
+      }
+    }
+
+    async upload(fileId: string, file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
+      const fileStream = this.createReadStreamFromBuffer(file.buffer);
     
-      return { progress$, finalId };
+      try {
+        const drive = await this.authorize();
+
+        let resolveId: (value: string) => void;
+        const finalId = new Promise<string>((resolve) => {
+          resolveId = resolve;
+        });
+    
+        const progress$ = new Observable<number>(observer => {
+          (async() => {
+            const res = await drive.files.update(
+              {
+                fileId,
+                requestBody: {},
+                media: {
+                  mimeType: file.mimetype,
+                  body: fileStream,
+                },
+                fields: 'id',
+              },
+              {
+                onUploadProgress: (progressEvent: { bytesRead: number; }) => {
+                  const progress = progressEvent.bytesRead / file.size * 100;
+                  observer.next(progress);
+                },
+              }
+            );
+            observer.complete();
+            resolveId(res.data.id);
+          })();
+        });
+        return { progress$, finalId };
+      } catch (err) {
+        throw new ExternalServiceException(err.message, this.SCOPE[0]);
+      }
     }
 
-    async findFile(fileName: string): Promise<string> {
-      const drive = await this.authorize();
-      const file = await this.find(drive, fileName);
-      if (!file) throw new NotFoundException();
-      return file;
+    async findByName(fileName: string): Promise<FileFoundResponse> {
+      try {
+        const drive = await this.authorize();
+        const response = await drive.files.list({
+            q: `name='${fileName}' and '${this.FOLDER_ID}' in parents and trashed=false`,
+            fields: 'files(id, name)',
+            spaces: 'drive'
+        });
+        const exist = response.data.files.length > 0 ? true : false;
+        const fileData = exist ? {
+          fileId: response.data.files[0].id,
+          name: fileName
+        } : null;
+        return {
+          exist,
+          fileData
+        };
+      } catch (err) {
+        throw new ExternalServiceException(err.message, this.SCOPE[0]);
+      }
     }
 
-    async existFile(fileName: string): Promise<boolean> {
-      const drive = await this.authorize();
-      const file = await this.find(drive, fileName);
-      return file ? true : false;
+    async findById(fileId: string): Promise<FileFoundResponse> {
+      try {
+        const drive = await this.authorize();
+        const response = await drive.files.get({
+          fileId,
+          fields: 'id, name',
+        });
+        const exist = response.data.name ? true : false;
+        const fileData = exist ? {
+          fileId,
+          name: response.data.name
+        } : null;
+        return {
+          exist,
+          fileData
+        };
+      } catch (err) {
+        if (err.code === 404) {
+          // File non trovato
+          return {
+            exist: false,
+            fileData: null
+          };
+        }
+        throw new ExternalServiceException(err.message, this.SCOPE[0]);
+      }
     }
 }

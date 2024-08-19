@@ -12,3 +12,13 @@ export interface GoogleServiceAccount {
     client_x509_cert_url: string;
     universe_domain: string;
 }
+
+export interface FileDataResponse {
+    fileId: string;
+    name: string;
+}
+
+export interface FileFoundResponse {
+    exist: boolean;
+    fileData?: FileDataResponse;
+}
