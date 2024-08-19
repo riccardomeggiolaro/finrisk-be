@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
-import { FileFoundResponse, GoogleServiceAccount } from '../interface/google.interface';
+import { FileFoundResponse, GoogleServiceAccount, SearchFilesResponse } from '../interface/google.interface';
 import { DriveAbstractService } from './drive.abstract.service';
 import { File } from '@nest-lab/fastify-multer';
 import { Observable } from 'rxjs';
@@ -69,7 +69,6 @@ export class GoogleDriveService extends DriveAbstractService {
               {
                 onUploadProgress: (progressEvent: { bytesRead: number; }) => {
                   const progress = progressEvent.bytesRead / file.size * 100;
-                  console.log(progress);
                   observer.next(progress);
                 },
               }
@@ -129,13 +128,13 @@ export class GoogleDriveService extends DriveAbstractService {
       try {
         const drive = await this.authorize();
         const response = await drive.files.list({
-            q: `name='${fileName}' and '${this.FOLDER_ID}' in parents and trashed=false`,
+            q: `name='${fileName}' and '${this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
             fields: 'files(id, name)',
             spaces: 'drive'
         });
         const exist = response.data.files.length > 0 ? true : false;
         const fileData = exist ? {
-          fileId: response.data.files[0].id,
+          id: response.data.files[0].id,
           name: fileName
         } : null;
         return {
@@ -147,16 +146,22 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async findById(fileId: string): Promise<FileFoundResponse> {
+    async findById(id: string): Promise<FileFoundResponse> {
       try {
         const drive = await this.authorize();
         const response = await drive.files.get({
-          fileId,
-          fields: 'id, name',
+          fileId: id,
+          fields: 'id, name, parents',
+          supportsAllDrives: true, // Necessario se utilizzi Drive condivisi
         });
-        const exist = response.data.name ? true : false;
+  
+        // Verifica se il file si trova nella cartella specificata
+        const isInFolder = response.data.parents && response.data.parents.includes(this.FOLDER_ID);
+    
+        const exist = isInFolder;
+
         const fileData = exist ? {
-          fileId,
+          id,
           name: response.data.name
         } : null;
         return {
@@ -171,6 +176,26 @@ export class GoogleDriveService extends DriveAbstractService {
             fileData: null
           };
         }
+        throw new ExternalServiceException(err.message, this.SCOPE[0]);
+      }
+    }
+
+    async list(name: string | null): Promise<SearchFilesResponse> {
+      try {
+        const drive = await this.authorize();
+        const data = {
+          q: `'${this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)',
+          spaces: 'drive'
+        };
+        if (name) data.q = `name contains '${name}' and` + data.q;
+        const response = await drive.files.list(data);
+        const quantity = response.data.files.length;
+        return {
+          files: response.data.files,
+          quantity
+        };
+      } catch (err) {
         throw new ExternalServiceException(err.message, this.SCOPE[0]);
       }
     }

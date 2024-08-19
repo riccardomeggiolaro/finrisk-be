@@ -13,12 +13,17 @@ export interface GoogleServiceAccount {
     universe_domain: string;
 }
 
-export interface FileDataResponse {
-    fileId: string;
+export interface File {
+    id: string;
     name: string;
 }
 
 export interface FileFoundResponse {
     exist: boolean;
-    fileData?: FileDataResponse;
+    fileData?: File;
+}
+
+export interface SearchFilesResponse {
+    files: File[];
+    quantity: number;
 }

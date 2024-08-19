@@ -4,7 +4,7 @@ import { BadRequestException, Controller, Get, HttpStatus, NotFoundException, Pa
 import { FileCsvPipe } from 'src/core/pipes/file-csv.pipe';
 import { DriveAbstractService } from 'src/modules/drive/service/drive.abstract.service';
 import { FastifyReply } from 'fastify';
-import { FileFoundResponse } from 'src/modules/drive/interface/google.interface';
+import { FileFoundResponse, SearchFilesResponse } from 'src/modules/drive/interface/google.interface';
 
 @Controller('drive')
 export class DriveController {
@@ -87,5 +87,17 @@ export class DriveController {
     @Get('exist/:fileName')
     async existFile(@Param('fileName') fileName: string): Promise<FileFoundResponse> {
         return await this.driveService.findByName(fileName);
+    }
+
+    @Get('find/id/:id')
+    async findFileById(@Param('id') id: string): Promise<FileFoundResponse> {
+      const response = await this.driveService.findById(id);
+      if (!response.exist) throw new NotFoundException();
+      return response;
+    }
+
+    @Get('list')
+    async list(@Query('name') name: string): Promise<SearchFilesResponse> {
+      return await this.driveService.list(name);
     }
 }

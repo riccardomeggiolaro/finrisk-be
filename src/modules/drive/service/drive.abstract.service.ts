@@ -3,7 +3,7 @@ import { File } from '@nest-lab/fastify-multer';
 import { Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Readable } from 'stream';
-import { FileFoundResponse } from '../interface/google.interface';
+import { FileFoundResponse, SearchFilesResponse } from '../interface/google.interface';
 
 @Injectable()
 export abstract class DriveAbstractService {
@@ -11,7 +11,7 @@ export abstract class DriveAbstractService {
     abstract upload(id: string, file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
     abstract findByName(fileName: string): Promise<FileFoundResponse>;
     abstract findById(id: string): Promise<FileFoundResponse>;
-    // abstract list(name: string): Promise<{files: FileFoundResponse[], quantity: number}>;
+    abstract list(name: string | null): Promise<SearchFilesResponse>;
 
     protected createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = 2 * 1024 * 1024): Readable {
         let currentPosition = 0;
