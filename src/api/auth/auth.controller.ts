@@ -6,8 +6,8 @@ import { User } from 'src/core/decorators/user.decorator';
 import { GoogleOAuthGuard } from 'src/core/guards/google-auth.guard';
 import { LocalAuthGuard } from 'src/core/guards/local-auth.guard';
 import { User as iUser } from '@modules/user';
-import { AddUserDTO } from './auth.dto';
-import { AuthService, AuthenticatedUser } from './auth.service';
+import { AddUserDTO } from '@modules/auth/entity/auth.dto';
+import { AuthService, AuthenticatedUser } from '@modules/auth/service/auth.service';
 
 @Controller('auth')
 export class AuthController {

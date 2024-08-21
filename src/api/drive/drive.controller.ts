@@ -2,9 +2,9 @@
 import { FileInterceptor, File } from '@nest-lab/fastify-multer';
 import { BadRequestException, Controller, Get, HttpStatus, NotFoundException, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileCsvPipe } from 'src/core/pipes/file-csv.pipe';
-import { DriveAbstractService } from 'src/modules/drive/service/drive.abstract.service';
+import { DriveAbstractService } from '@modules/drive/service/drive.abstract.service';
 import { FastifyReply } from 'fastify';
-import { FileFoundResponse, SearchFilesResponse } from 'src/modules/drive/interface/google.interface';
+import { FileFoundResponse, SearchFilesResponse } from '@modules/drive/entity/google.interface';
 
 @Controller('drive')
 export class DriveController {

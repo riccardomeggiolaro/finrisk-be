@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Injectable, Type } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import {

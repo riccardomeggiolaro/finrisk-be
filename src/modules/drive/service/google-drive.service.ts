@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
-import { FileFoundResponse, GoogleServiceAccount, SearchFilesResponse } from '../interface/google.interface';
+import { FileFoundResponse, GoogleServiceAccount, SearchFilesResponse } from '../entity/google.interface';
 import { DriveAbstractService } from './drive.abstract.service';
 import { File } from '@nest-lab/fastify-multer';
 import { Observable } from 'rxjs';

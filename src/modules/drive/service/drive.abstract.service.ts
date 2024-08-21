@@ -3,7 +3,7 @@ import { File } from '@nest-lab/fastify-multer';
 import { Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Readable } from 'stream';
-import { FileFoundResponse, SearchFilesResponse } from '../interface/google.interface';
+import { FileFoundResponse, SearchFilesResponse } from '../entity/google.interface';
 
 @Injectable()
 export abstract class DriveAbstractService {

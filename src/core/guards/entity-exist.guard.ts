@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { BadRequestException, CanActivate, ExecutionContext, Injectable, NotFoundException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { InjectConnection } from "@nestjs/mongoose";

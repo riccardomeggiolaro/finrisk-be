@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthService } from '@api/auth/auth.service';
+import { AuthService } from '../service/auth.service';
 import { User } from '@modules/user';
 import { Role } from '@modules/user-identity';
 

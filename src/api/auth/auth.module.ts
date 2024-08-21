@@ -1,41 +1,13 @@
 /* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { UserModule } from '@modules/user';
-import { PassportModule } from '@nestjs/passport';
-import { LocalStrategy } from '@api/auth/strategies/local.strategy';
 import { AuthController } from './auth.controller';
-import { JwtModule } from '@nestjs/jwt';
-import { JwtStrategy } from '@api/auth/strategies/jwt.strategy';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from 'src/core/guards/jwt-auth.guard';
-import { ConfigService } from '@nestjs/config';
-import { UserIdentityModule } from '@modules/user-identity';
-import { GoogleStrategy } from './strategies/google.strategy';
+import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
   imports: [
-    UserModule, 
-    UserIdentityModule,
-    JwtModule.registerAsync({
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: "7d" }
-      }),
-      inject: [ConfigService]
-    }),
-    PassportModule.register({session: true})
-  ],
-  providers: [
-    AuthService, 
-    LocalStrategy,
-    GoogleStrategy,
-    JwtStrategy,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard
-    },
+    AuthModule
   ],
   controllers: [AuthController],
+  providers: [],
 })
-export class AuthModule {}
+export class AuthApiModule {}
