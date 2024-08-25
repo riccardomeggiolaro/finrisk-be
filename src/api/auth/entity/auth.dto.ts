@@ -1,5 +1,6 @@
 /* eslint-disable prettier/prettier */
-import { IsEmail, IsString, IsUrl, Matches, MinLength } from "@nestjs/class-validator";
+import { IsEmail, IsString, Matches, MinLength } from "@nestjs/class-validator";
+import { IsAbiCodeUnique } from "src/core/validators/otp-existing.validator";
 
 export class AddUserDTO {
   @IsString()
@@ -8,8 +9,8 @@ export class AddUserDTO {
   @IsString()
   lastName: string;
 
-  @IsUrl()
-  picture: string;
+  @IsString()
+  company: string;
 
   @IsEmail()
   username: string;
@@ -30,4 +31,15 @@ export class LoginDTO {
 
   @IsString()
   password: string;
+}
+
+export class AbiCodeDTO {
+  @IsString()
+  @MinLength(3)
+  @IsAbiCodeUnique(
+    { 
+      message: 'OTP already exists' 
+    }
+  )
+  abiCode: string;
 }

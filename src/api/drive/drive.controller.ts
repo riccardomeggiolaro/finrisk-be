@@ -5,7 +5,9 @@ import { FileCsvPipe } from 'src/core/pipes/file-csv.pipe';
 import { DriveAbstractService } from '@modules/drive/service/drive.abstract.service';
 import { FastifyReply } from 'fastify';
 import { FileFoundResponse, SearchFilesResponse } from '@modules/drive/entity/google.interface';
+import { Public } from 'src/core/decorators/is.public.decorator';
 
+@Public()
 @Controller('drive')
 export class DriveController {
     constructor(private readonly driveService: DriveAbstractService) {}
@@ -20,7 +22,7 @@ export class DriveController {
 
       // se passato l'id, controllo che l'id del file da modificare esista e abbia lo stesso nome del file nuovo passato
       if (file_id_overwrite) {
-        const existUpdatingFile: FileFoundResponse = await this.driveService.findById(file_id_overwrite);
+        const existUpdatingFile: FileFoundResponse = await this.driveService.findFileById(file_id_overwrite);
         if (!existUpdatingFile.exist) throw new NotFoundException({
           message: 'Not Found',
           file_id_overwrite,
@@ -34,7 +36,7 @@ export class DriveController {
         });
       } else {
         // se non passato l'id, controllo che il nome del file passato non sia già presente 
-        const fileJustExist: FileFoundResponse = await this.driveService.findByName(file.originalname);
+        const fileJustExist: FileFoundResponse = await this.driveService.findFileByName(file.originalname);
         if (fileJustExist.exist) throw new BadRequestException({
           message: 'File name just exist in drive',
           existing_file: fileJustExist.fileData,
@@ -54,7 +56,7 @@ export class DriveController {
         res.raw.write(eventString);
       };
 
-      const { progress$, finalId } = file_id_overwrite ? await this.driveService.upload(file_id_overwrite, file) : await this.driveService.create(file);
+      const { progress$, finalId } = file_id_overwrite ? await this.driveService.uploadFile(file_id_overwrite, file) : await this.driveService.createFile(file);
 
       await new Promise<void>((resolve, reject) => {
         progress$.subscribe({
@@ -79,25 +81,25 @@ export class DriveController {
 
     @Get('find/:fileName')
     async findFile(@Param('fileName') fileName: string): Promise<FileFoundResponse> {
-        const response = await this.driveService.findByName(fileName);
+        const response = await this.driveService.findFileByName(fileName);
         if (!response.exist) throw new NotFoundException();
         return response;
     }
 
     @Get('exist/:fileName')
     async existFile(@Param('fileName') fileName: string): Promise<FileFoundResponse> {
-        return await this.driveService.findByName(fileName);
+        return await this.driveService.findFileByName(fileName);
     }
 
     @Get('find/id/:id')
     async findFileById(@Param('id') id: string): Promise<FileFoundResponse> {
-      const response = await this.driveService.findById(id);
+      const response = await this.driveService.findFileById(id);
       if (!response.exist) throw new NotFoundException();
       return response;
     }
 
     @Get('list')
     async list(@Query('name') name: string): Promise<SearchFilesResponse> {
-      return await this.driveService.list(name);
+      return await this.driveService.listFiles(name);
     }
 }

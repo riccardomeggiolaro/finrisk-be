@@ -27,3 +27,10 @@ export interface SearchFilesResponse {
     files: File[];
     quantity: number;
 }
+
+export interface Folder extends File {}
+
+export interface SearchFoldersResponse {
+    folders: Folder[];
+    quantity: number;
+}

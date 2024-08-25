@@ -1,7 +1,7 @@
 /* eslint-disable prettier/prettier */
-import { Role } from '@modules/user-identity';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { Role } from './user.interface';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -31,10 +31,22 @@ export class User {
   lastName: string;
 
   @Prop()
-  picture: string;
+  company: string;
 
   @Prop({enum: Role})
-  role: Role;
+  role?: Role;
+
+  @Prop()
+  abiCodeId?: string;
+
+  @Prop()
+  username: string;
+
+  @Prop()
+  hashedPassword?: string;
+
+  @Prop()
+  enabled?: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

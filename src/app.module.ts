@@ -8,12 +8,12 @@ import { DriveAbstractService } from './modules/drive/service/drive.abstract.ser
 import { GoogleDriveService } from './modules/drive/service/google-drive.service';
 import { FastifyMulterModule } from '@nest-lab/fastify-multer';
 import { UserAbstractService, UserModule, UserService } from '@modules/user';
-import { UserIdentityAbstractService, UserIdentityModule, UserIdentityService } from '@modules/user-identity';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 import { DriveApiModule } from '@api/drive/drive.module';
-import { AuthModule } from '@modules/auth';
 import { AuthApiModule } from '@api/auth/auth.module';
+import { EmailAbstractService, EmailModule, GoogleEmailService } from '@modules/email';
+import { OtpUserAbstractService, OtpUserModule, OtpUserService } from '@modules/otp-user';
 
 @Module({
   imports: [
@@ -25,16 +25,19 @@ import { AuthApiModule } from '@api/auth/auth.module';
     DriveModule.forRoot([
       { provide: DriveAbstractService, useClass: GoogleDriveService }
     ]),
+    EmailModule.forRoot([
+      { provide: EmailAbstractService, useClass: GoogleEmailService }
+    ]),
     UserModule.forRoot([
       {provide: UserAbstractService, useClass: UserService}
     ]),
-    UserIdentityModule.forRoot([
-      {provide: UserIdentityAbstractService, useClass: UserIdentityService}
+    MongooseModule.forRoot(process.env.MONGODB_URI),
+    UserModule.forRoot([
+      { provide: UserAbstractService, useClass: UserService }
     ]),
-    MongooseModule.forRoot('mongodb://127.0.0.1:27017/finrisk'),
-    UserModule,
-    UserIdentityModule,
-    AuthModule,
+    OtpUserModule.forRoot([
+      { provide: OtpUserAbstractService, useClass: OtpUserService }
+    ]),
     FastifyMulterModule,
     AuthApiModule,
     DriveApiModule
