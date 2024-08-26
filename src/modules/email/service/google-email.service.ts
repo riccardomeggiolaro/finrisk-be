@@ -29,7 +29,7 @@ export class GoogleEmailService {
   
       const emailOptions = {
         from: {
-          name: "Ares-bi",
+          name: "Finrisk",
           address: this.GOOGLE_EMAIL
         },
         to: [email],
