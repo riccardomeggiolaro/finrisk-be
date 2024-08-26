@@ -3,18 +3,16 @@ import { File } from '@nest-lab/fastify-multer';
 import { Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Readable } from 'stream';
-import { FileFoundResponse, Folder, SearchFilesResponse, SearchFoldersResponse } from '../entity/google.interface';
+import { FileFoundResponse, Folder, SearchFilesResponse } from '../entity/google.interface';
 
 @Injectable()
 export abstract class DriveAbstractService {
-    abstract createFile(file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
-    abstract uploadFile(id: string, file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
-    abstract findFileByName(fileName: string): Promise<FileFoundResponse>;
-    abstract findFileById(id: string): Promise<FileFoundResponse>;
-    abstract listFiles(name: string | null): Promise<SearchFilesResponse>;
+    abstract createFile(file: File, folderParent?: string): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
+    abstract uploadFile(id: string, file: File, folderParent?: string): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
+    abstract findFileByName(fileName: string, folderParent?: string): Promise<FileFoundResponse>;
+    abstract findFileById(id: string, folderParent?: string): Promise<FileFoundResponse>;
+    abstract listFiles(name: string | null, folderParent?: string): Promise<SearchFilesResponse>;
     abstract createFolder(name: string): Promise<{ id: string }>;
-    abstract listFolders(name: string): Promise<SearchFoldersResponse>;
-    abstract findFolderById(id: string): Promise<Folder>;
     abstract findFolderByName(name: string): Promise<Folder>;
 
     protected createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = 2 * 1024 * 1024): Readable {

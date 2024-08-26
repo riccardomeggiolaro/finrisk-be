@@ -36,10 +36,10 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async createFile(file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
+    async createFile(file: File, folderParent?: string): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
       const fileMetadata = {
         name: file.originalname,
-        parents: [this.FOLDER_ID]
+        parents: [folderParent || this.FOLDER_ID]
       };
 
       const fileStream = this.createReadStreamFromBuffer(file.buffer);
@@ -83,7 +83,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async uploadFile(fileId: string, file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
+    async uploadFile(fileId: string, file: File, folderParent?: string): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
       const fileStream = this.createReadStreamFromBuffer(file.buffer);
     
       try {
@@ -123,11 +123,11 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async findFileByName(fileName: string): Promise<FileFoundResponse> {
+    async findFileByName(fileName: string, folderParent?: string): Promise<FileFoundResponse> {
       try {
         const drive = await this.authorize();
         const response = await drive.files.list({
-            q: `name='${fileName}' and '${this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+            q: `name='${fileName}' and '${folderParent || this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
             fields: 'files(id, name)',
             spaces: 'drive'
         });
@@ -145,7 +145,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async findFileById(id: string): Promise<FileFoundResponse> {
+    async findFileById(id: string, folderParent?: string): Promise<FileFoundResponse> {
       try {
         const drive = await this.authorize();
         const response = await drive.files.get({
@@ -155,7 +155,7 @@ export class GoogleDriveService extends DriveAbstractService {
         });
   
         // Verifica se il file si trova nella cartella specificata
-        const isInFolder = response.data.parents && response.data.parents.includes(this.FOLDER_ID);
+        const isInFolder = response.data.parents && response.data.parents.includes(folderParent || this.FOLDER_ID);
     
         const exist = isInFolder;
 
@@ -179,11 +179,11 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async listFiles(name: string | null): Promise<SearchFilesResponse> {
+    async listFiles(name: string | null, folderParent?: string): Promise<SearchFilesResponse> {
       try {
         const drive = await this.authorize();
         const data = {
-          q: `'${this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+          q: `'${folderParent || this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
           fields: 'files(id, name)',
           spaces: 'drive'
         };
@@ -220,54 +220,6 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
     
-    async listFolders(name: string): Promise<SearchFoldersResponse> {
-      try {
-        const drive = await this.authorize();
-        const data = {
-          q: `'${this.FOLDER_ID}' in parents and mimeType == 'application/vnd.google-apps.folder' and trashed=false`,
-          fields: 'files(id, name)',
-          spaces: 'drive'
-        };
-        if (name) data.q = `name contains '${name}' and` + data.q;
-        const response = await drive.files.list(data);
-        const quantity = response.data.files.length;
-        return {
-          folders: response.data.files,
-          quantity
-        };
-      } catch (err) {
-        throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
-      }
-    }
-    
-    async findFolderById(id: string): Promise<Folder> {
-      try {
-        const drive = await this.authorize();
-        const response = await drive.files.get({
-          fileId: id,
-          fields: 'id, name, parents',
-          supportsAllDrives: true, // Necessario se utilizzi Drive condivisi
-        });
-  
-        // Verifica se il file si trova nella cartella specificata
-        const isInFolder = response.data.parents && response.data.parents.includes(this.FOLDER_ID);
-    
-        const exist = isInFolder;
-
-        const fileData = exist ? {
-          id,
-          name: response.data.name
-        } : null;
-        return fileData;
-      } catch (err) {
-        if (err.code === 404) {
-          // File non trovato
-          throw new NotFoundException();
-        }
-        throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
-      }
-    }     
-
     async findFolderByName(name: string): Promise<Folder> {
       try {
         const drive = await this.authorize();

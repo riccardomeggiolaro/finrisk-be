@@ -6,6 +6,8 @@ import { DriveAbstractService } from '@modules/drive/service/drive.abstract.serv
 import { FastifyReply } from 'fastify';
 import { FileFoundResponse, SearchFilesResponse } from '@modules/drive/entity/google.interface';
 import { Public } from 'src/core/decorators/is.public.decorator';
+import { User } from 'src/core/decorators/user.decorator';
+import { User as iUser } from '@modules/user';
 
 @Public()
 @Controller('drive')
@@ -15,6 +17,7 @@ export class DriveController {
     @Post('upload')
     @UseInterceptors(FileInterceptor('file'))
     async uploadFile(
+      @User() user: iUser,
       @Query('file_id_overwrite') file_id_overwrite: string,
       @UploadedFile(new FileCsvPipe()) file: File,
       @Res({ passthrough: true }) res: FastifyReply,
@@ -22,7 +25,7 @@ export class DriveController {
 
       // se passato l'id, controllo che l'id del file da modificare esista e abbia lo stesso nome del file nuovo passato
       if (file_id_overwrite) {
-        const existUpdatingFile: FileFoundResponse = await this.driveService.findFileById(file_id_overwrite);
+        const existUpdatingFile: FileFoundResponse = await this.driveService.findFileById(file_id_overwrite, user.abiCodeId);
         if (!existUpdatingFile.exist) throw new NotFoundException({
           message: 'Not Found',
           file_id_overwrite,
@@ -80,26 +83,34 @@ export class DriveController {
     }
 
     @Get('find/:fileName')
-    async findFile(@Param('fileName') fileName: string): Promise<FileFoundResponse> {
-        const response = await this.driveService.findFileByName(fileName);
+    async findFile(
+      @User() user: iUser,
+      @Param('fileName') fileName: string): Promise<FileFoundResponse> {
+        const response = await this.driveService.findFileByName(fileName, user.abiCodeId);
         if (!response.exist) throw new NotFoundException();
         return response;
     }
 
     @Get('exist/:fileName')
-    async existFile(@Param('fileName') fileName: string): Promise<FileFoundResponse> {
-        return await this.driveService.findFileByName(fileName);
+    async existFile(
+      @User() user: iUser,
+      @Param('fileName') fileName: string): Promise<FileFoundResponse> {
+        return await this.driveService.findFileByName(fileName, user.abiCodeId);
     }
 
     @Get('find/id/:id')
-    async findFileById(@Param('id') id: string): Promise<FileFoundResponse> {
-      const response = await this.driveService.findFileById(id);
+    async findFileById(
+      @User() user: iUser,
+      @Param('id') id: string): Promise<FileFoundResponse> {
+      const response = await this.driveService.findFileById(id, user.abiCodeId);
       if (!response.exist) throw new NotFoundException();
       return response;
     }
 
     @Get('list')
-    async list(@Query('name') name: string): Promise<SearchFilesResponse> {
-      return await this.driveService.listFiles(name);
+    async list(
+      @User() user: iUser,
+      @Query('name') name: string): Promise<SearchFilesResponse> {
+      return await this.driveService.listFiles(name, user.abiCodeId);
     }
 }

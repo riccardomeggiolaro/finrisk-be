@@ -2,17 +2,20 @@
 import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { DriveAbstractService } from '@modules/drive';
+import { OtpAbiUserAbstractService } from '@modules/otp-abi-user';
 
 @Injectable()
 @ValidatorConstraint({ async: true })
 export class IsAbiCodeUniqueConstraint implements ValidatorConstraintInterface {
   constructor(
-    private driveService: DriveAbstractService
+    private driveService: DriveAbstractService,
+    private otpAbiUserService: OtpAbiUserAbstractService
   ) {}
 
   async validate(abiCode: string, args: ValidationArguments) {
-    const existingAbiCode = await this.driveService.findFolderByName(abiCode);
-    return existingAbiCode ? false : true;
+    const existingAbiCodeOnDrive = await this.driveService.findFolderByName(abiCode);
+    const existingAbiCodeOnUser = await this.otpAbiUserService.findByAbiCode(abiCode);
+    return existingAbiCodeOnDrive || existingAbiCodeOnUser ? false : true;
   }
 
   defaultMessage(args: ValidationArguments) {

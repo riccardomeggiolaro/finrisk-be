@@ -4,6 +4,7 @@ import { User } from '../entity/user.schema';
 import { Model } from 'mongoose';
 import { UserAbstractService } from './user.abstract.service';
 import { Injectable } from '@nestjs/common';
+import { OptionsUser } from '../entity/user.interface';
 
 @Injectable()
 export class UserService extends UserAbstractService {
@@ -30,8 +31,8 @@ export class UserService extends UserAbstractService {
     return (await this.userSchema.create(user)).toObject();
   }
 
-  async enableUserAndAddAbiCode(id: string, enabled: boolean, abiCodeId: string): Promise<User> {
-    return (await this.userSchema.findByIdAndUpdate(id, {enabled, abiCodeId}, {new: true})).toObject()  
+  async update(id: string, options: OptionsUser): Promise<User> {
+    return (await this.userSchema.findByIdAndUpdate(id, options, {new: true})).toObject()  
   }
 
   async counterUsers(): Promise<number> {

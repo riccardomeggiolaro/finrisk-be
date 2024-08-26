@@ -7,7 +7,7 @@ import { omit } from 'lodash';
 import { DriveAbstractService } from '@modules/drive';
 import { AuthenticatedUser, iUser } from './entity/auth.interface';
 import { AddUserDTO } from './entity/auth.dto';
-import { OtpUserAbstractService } from '@modules/otp-user';
+import { OtpAbiUser, OtpAbiUserAbstractService } from '@modules/otp-abi-user';
 import { EmailAbstractService } from '@modules/email';
 
 @Injectable()
@@ -17,24 +17,31 @@ export class AuthService {
     private userService: UserAbstractService,
     private jwtService: JwtService,
     private driveService: DriveAbstractService,
-    private otpUserService: OtpUserAbstractService,
+    private otpAbiUserService: OtpAbiUserAbstractService,
     private emailService: EmailAbstractService
   ) {}
 
-  async sendOtpCodeEmailConfirmation(action: 'Login' | 'Register', user: User): Promise<void> {
-    const confirmationOtp = await this.otpUserService.create(user.id);
-    await this.emailService.sendConfirmationEmail(action, user.username, confirmationOtp.otpCode);
+  async sendConfirmationLogin(user: User): Promise<OtpAbiUser> {
+    const confirmationOtp = await this.otpAbiUserService.create(user.id);
+    await this.emailService.sendConfirmationEmail('Login', user.username, confirmationOtp.otpCode);
+    return confirmationOtp;
   }
 
-  async validateOtpCode(otpCode: number): Promise<User> {
-    const otpUser = await this.otpUserService.findOneAndDelete(otpCode);
-    if (!otpUser) throw new UnauthorizedException('Invalid or expired opt code');
-    return otpUser.user;
+  async sendConfirmationRegister(user: User, abiCode: string): Promise<OtpAbiUser> {
+    const confirmationOtp = await this.otpAbiUserService.create(user.id, abiCode);
+    await this.emailService.sendConfirmationEmail('Register', user.username, confirmationOtp.otpCode);
+    return confirmationOtp;
   }
 
-  async enableUserAndAddAbiCode(userId: string, abiCode: string): Promise<User> {
+  async validateOtpCode(publicKey: string, otpCode: number): Promise<OtpAbiUser> {
+    const otpAbiUser = await this.otpAbiUserService.findOneAndDelete(publicKey, otpCode);
+    if (!otpAbiUser) throw new UnauthorizedException('Invalid or expired opt code');
+    return otpAbiUser;
+  }
+
+  async enableUserAndCreateFolder(userId: string, abiCode: string): Promise<User> {
     const abiCodeId = (await this.driveService.createFolder(abiCode)).id;
-    return await this.userService.enableUserAndAddAbiCode(userId, true, abiCodeId);
+    return await this.userService.update(userId, { enabled: true, abiCodeId });
   }
 
   async validateUser(username: string, password: string): Promise<iUser> {
@@ -57,7 +64,7 @@ export class AuthService {
     const existingIdentity = await this.userService.findByUsername(user.username);
     if (existingIdentity) throw new BadRequestException('Username already exists');
     const hashedPassword = await bcrypt.hash(user.password, 10);
-    const userData: User = omit(user, 'password');
+    const userData: User = omit(user, 'password', 'abiCode');
     const usersCount = await this.userService.counterUsers();
     if (usersCount === 0) userData.role = Role.Admin;
     else userData.role = Role.Customer;

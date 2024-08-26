@@ -12,6 +12,15 @@ export class AddUserDTO {
   @IsString()
   company: string;
 
+  @IsString()
+  @MinLength(3)
+  @IsAbiCodeUnique(
+    {
+      message: 'ABI already exists'
+    }
+  )
+  abiCode: string;
+
   @IsEmail()
   username: string;
 
@@ -31,15 +40,4 @@ export class LoginDTO {
 
   @IsString()
   password: string;
-}
-
-export class AbiCodeDTO {
-  @IsString()
-  @MinLength(3)
-  @IsAbiCodeUnique(
-    { 
-      message: 'OTP already exists' 
-    }
-  )
-  abiCode: string;
 }

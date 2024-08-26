@@ -11,7 +11,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from 'src/core/guards/jwt-auth.guard';
-import { OtpUserModule } from '@modules/otp-user';
+import { OtpAbiUserModule } from '@modules/otp-abi-user';
 import { IsAbiCodeUniqueConstraint } from 'src/core/validators/otp-existing.validator';
 
 @Module({
@@ -26,7 +26,7 @@ import { IsAbiCodeUniqueConstraint } from 'src/core/validators/otp-existing.vali
       inject: [ConfigService],
     }),
     PassportModule.register({session: true}),
-    OtpUserModule
+    OtpAbiUserModule
   ],
   controllers: [AuthController],
   providers: [

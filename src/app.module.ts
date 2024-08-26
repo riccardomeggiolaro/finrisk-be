@@ -13,7 +13,7 @@ import { PassportModule } from '@nestjs/passport';
 import { DriveApiModule } from '@api/drive/drive.module';
 import { AuthApiModule } from '@api/auth/auth.module';
 import { EmailAbstractService, EmailModule, GoogleEmailService } from '@modules/email';
-import { OtpUserAbstractService, OtpUserModule, OtpUserService } from '@modules/otp-user';
+import { OtpAbiUserAbstractService, OtpAbiUserModule, OtpAbiUserService } from '@modules/otp-abi-user';
 
 @Module({
   imports: [
@@ -22,6 +22,7 @@ import { OtpUserAbstractService, OtpUserModule, OtpUserService } from '@modules/
       isGlobal: true,
       envFilePath: '.env',
     }),
+    MongooseModule.forRoot(process.env.MONGODB_URI),
     DriveModule.forRoot([
       { provide: DriveAbstractService, useClass: GoogleDriveService }
     ]),
@@ -31,12 +32,8 @@ import { OtpUserAbstractService, OtpUserModule, OtpUserService } from '@modules/
     UserModule.forRoot([
       {provide: UserAbstractService, useClass: UserService}
     ]),
-    MongooseModule.forRoot(process.env.MONGODB_URI),
-    UserModule.forRoot([
-      { provide: UserAbstractService, useClass: UserService }
-    ]),
-    OtpUserModule.forRoot([
-      { provide: OtpUserAbstractService, useClass: OtpUserService }
+    OtpAbiUserModule.forRoot([
+      { provide: OtpAbiUserAbstractService, useClass: OtpAbiUserService }
     ]),
     FastifyMulterModule,
     AuthApiModule,
