@@ -2,11 +2,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
-import { FileFoundResponse, Folder, GoogleServiceAccount, SearchFilesResponse, SearchFoldersResponse } from '../entity/google.interface';
+import { Folder, GoogleServiceAccount, ProgressUploadFile, SearchFilesResponse } from '../entity/drive.interface';
 import { DriveAbstractService } from './drive.abstract.service';
 import { File } from '@nest-lab/fastify-multer';
 import { Observable } from 'rxjs';
 import { ExternalServiceException } from 'src/core/exceptions/external-service.exception';
+import { File as iFile } from '../entity/drive.interface';
 
 @Injectable()
 export class GoogleDriveService extends DriveAbstractService {
@@ -36,7 +37,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async createFile(file: File, folderParent?: string): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
+    async createFile(file: File, folderParent?: string): Promise<ProgressUploadFile> {
       const fileMetadata = {
         name: file.originalname,
         parents: [folderParent || this.FOLDER_ID]
@@ -83,7 +84,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async uploadFile(fileId: string, file: File, folderParent?: string): Promise<{ progress$: Observable<number>; finalId: Promise<string> }> {
+    async uploadFile(fileId: string, file: File): Promise<ProgressUploadFile> {
       const fileStream = this.createReadStreamFromBuffer(file.buffer);
     
       try {
@@ -123,7 +124,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async findFileByName(fileName: string, folderParent?: string): Promise<FileFoundResponse> {
+    async findFileByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile> {
       try {
         const drive = await this.authorize();
         const response = await drive.files.list({
@@ -131,21 +132,20 @@ export class GoogleDriveService extends DriveAbstractService {
             fields: 'files(id, name)',
             spaces: 'drive'
         });
-        const exist = response.data.files.length > 0 ? true : false;
-        const fileData = exist ? {
-          id: response.data.files[0].id,
-          name: fileName
-        } : null;
+        const id = response.data.files.length > 0 ? response.data.files[0].id : null;
+        if (!id && throwErrorOnNotFound) throw new NotFoundException();
+        if (!id && !throwErrorOnNotFound) return null;
         return {
-          exist,
-          fileData
-        };
+          id,
+          name: fileName
+        }
       } catch (err) {
+        if (err.status === 404) throw new NotFoundException();
         throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
     }
 
-    async findFileById(id: string, folderParent?: string): Promise<FileFoundResponse> {
+    async findFileById(id: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile> {
       try {
         const drive = await this.authorize();
         const response = await drive.files.get({
@@ -153,28 +153,16 @@ export class GoogleDriveService extends DriveAbstractService {
           fields: 'id, name, parents',
           supportsAllDrives: true, // Necessario se utilizzi Drive condivisi
         });
-  
         // Verifica se il file si trova nella cartella specificata
         const isInFolder = response.data.parents && response.data.parents.includes(folderParent || this.FOLDER_ID);
-    
-        const exist = isInFolder;
-
-        const fileData = exist ? {
+        if (!isInFolder && throwErrorOnNotFound) throw new NotFoundException();
+        if (!isInFolder && !throwErrorOnNotFound) return null;
+        return {
           id,
           name: response.data.name
-        } : null;
-        return {
-          exist,
-          fileData
-        };
-      } catch (err) {
-        if (err.code === 404) {
-          // File non trovato
-          return {
-            exist: false,
-            fileData: null
-          };
         }
+      } catch (err) {
+        if (err.status === 404 && throwErrorOnNotFound) throw new NotFoundException();
         throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
     }

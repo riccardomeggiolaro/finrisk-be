@@ -1,4 +1,6 @@
 /* eslint-disable prettier/prettier */
+import { Observable } from "rxjs";
+
 export interface GoogleServiceAccount {
     type: string;
     project_id: string;
@@ -18,9 +20,9 @@ export interface File {
     name: string;
 }
 
-export interface FileFoundResponse {
+export interface ExistFIle {
     exist: boolean;
-    fileData?: File;
+    data: File;
 }
 
 export interface SearchFilesResponse {
@@ -33,4 +35,9 @@ export interface Folder extends File {}
 export interface SearchFoldersResponse {
     folders: Folder[];
     quantity: number;
+}
+
+export interface ProgressUploadFile {
+    progress$: Observable<number>; 
+    finalId: Promise<string>
 }
