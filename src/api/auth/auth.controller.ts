@@ -19,7 +19,7 @@ export class AuthController {
     @Public()
     @UseGuards(LocalAuthGuard)
     @Post('login')
-    async login(@User() user: iUser): Promise<{ message: string, publicKey: string }> {
+    async login(@User() user: iUser): Promise<{ message: string, publicKey: string } | AuthenticatedUser> {
       const confirmationOtp = await this.authService.sendConfirmationLogin(user);
       // Risponde immediatamente al client con il token
       return { message: 'Confirmation email sent', publicKey: confirmationOtp.publicKey };

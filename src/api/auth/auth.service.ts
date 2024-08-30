@@ -41,7 +41,7 @@ export class AuthService {
     return reloadConfirmationOtp;
   }
 
-  private generatePassword(length: number = 6): string {
+  private generatePassword(length: number = 8): string {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let password = '';
     for (let i = 0; i < length; i++) {
