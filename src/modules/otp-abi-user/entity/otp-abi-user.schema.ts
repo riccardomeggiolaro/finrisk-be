@@ -37,10 +37,9 @@ export class OtpAbiUser {
   @Prop({
     type: Number,
     default: () => {
-        // Crea 3 byte casuali e convertili in un numero decimale
         const buffer = randomBytes(3);
-        const codice = parseInt(buffer.toString('hex'), 16) % 900000 + 100000;
-        return codice; // Converte il numero in una stringa
+        const code = parseInt(buffer.toString('hex'), 16) % 900000 + 100000;
+        return code;
     },
     unique: true
   })
@@ -51,6 +50,9 @@ export class OtpAbiUser {
 
   @Prop({ type: Types.ObjectId, ref: 'User' })
   user: User;
+
+  @Prop({ type: Date, default: Date.now, expires: 120 }) // 300 seconds = 5 minutes
+  createdAt: Date;
 }
 
 export const OtpAbiUserSchema = SchemaFactory.createForClass(OtpAbiUser);
@@ -61,6 +63,11 @@ OtpAbiUserSchema.pre('findOne', function (next) {
 });
 
 OtpAbiUserSchema.pre('findOneAndDelete', function (next) {
+  this.populate('user');
+  next();
+});
+
+OtpAbiUserSchema.pre('findOneAndUpdate', function (next) {
   this.populate('user');
   next();
 });

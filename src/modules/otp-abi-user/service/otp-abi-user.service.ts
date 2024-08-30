@@ -4,6 +4,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { OtpAbiUser } from "../entity/otp-abi-user.schema";
 import { Model } from "mongoose";
 import { Injectable } from "@nestjs/common";
+import { randomBytes } from "crypto";
 
 @Injectable()
 export class OtpAbiUserService extends OtpAbiUserAbstractService {
@@ -28,5 +29,18 @@ export class OtpAbiUserService extends OtpAbiUserAbstractService {
     async findByAbiCode(abiCode: string): Promise<OtpAbiUser> {
         const findOne = await this.otpAbiUserSchema.findOne({abiCode});
         return findOne ? findOne.toObject() : null;
+    }
+
+    async deleteByUserId(userId: string): Promise<void> {
+        await this.otpAbiUserSchema.deleteMany({user: userId});       
+    }
+
+    async reloadOtp(publicKey: string): Promise<OtpAbiUser> {
+        const newOtpCode = (): number => {
+            const buffer = randomBytes(3);
+            const code = parseInt(buffer.toString('hex'), 16) % 900000 + 100000;
+            return code;
+        };
+        return await this.otpAbiUserSchema.findOneAndUpdate({publicKey}, {otpCode: newOtpCode()}, {new: true});
     }
 }

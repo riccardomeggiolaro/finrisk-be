@@ -6,6 +6,8 @@ import { LocalAuthGuard } from 'src/core/guards/local-auth.guard';
 import { AddUserDTO } from '@api/auth/entity/auth.dto';
 import { AuthService } from './auth.service';
 import { AuthenticatedUser, iUser } from './entity/auth.interface';
+import { EmailValidationPipe } from 'src/core/pipes/email-validation.pipe';
+import { MinLengthPipe } from 'src/core/pipes/min-length.pipe';
 
 @Controller('auth')
 export class AuthController {
@@ -49,5 +51,25 @@ export class AuthController {
       const otpValidated = await this.authService.validateOtpCode(publicKey, otpCode);
       const user = await this.authService.enableUserAndCreateFolder(otpValidated.user.id, otpValidated.abiCode);
       return this.authService.login(user);
+    }
+
+    @Public()
+    @Get('resend-confirm/:publicKey')
+    async resendConfirm(@Param('publicKey') publicKey: string): Promise<{ message: string, publicKey: string }> {
+      const updatedConfirmationOtp = await this.authService.resendConfirmationOtp(publicKey);
+      return { message: 'Confirmation email resent', publicKey: updatedConfirmationOtp.publicKey };
+    }
+
+    @Public()
+    @Get('send-recovery-password/:email')
+    async recoveryPassword(@Param('email', EmailValidationPipe) email: string): Promise<{ message: string }> {
+      await this.authService.sendRecoveryPassword(email);
+      return { message: `New password sent to email ${email}` };
+    }
+
+    @Get('change-password/:password')
+    async changePassword(@User() user: iUser, @Param('password', new MinLengthPipe(8)) password: string): Promise<{ message: string }> {
+      await this.authService.changePassword(user.id, password);
+      return { message: 'New password set' };
     }
 }

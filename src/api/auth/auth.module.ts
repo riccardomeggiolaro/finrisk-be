@@ -13,6 +13,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from 'src/core/guards/jwt-auth.guard';
 import { OtpAbiUserModule } from '@modules/otp-abi-user';
 import { IsAbiCodeUniqueConstraint } from 'src/core/validators/otp-existing.validator';
+import { IsUsernameUniqueConstraint } from 'src/core/validators/username-existing.validator';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { IsAbiCodeUniqueConstraint } from 'src/core/validators/otp-existing.vali
       provide: APP_GUARD,
       useClass: JwtAuthGuard
     },
-    IsAbiCodeUniqueConstraint
+    IsAbiCodeUniqueConstraint,
+    IsUsernameUniqueConstraint
   ],
 })
 export class AuthApiModule {}

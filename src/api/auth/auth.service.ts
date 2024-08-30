@@ -22,6 +22,7 @@ export class AuthService {
   ) {}
 
   async sendConfirmationLogin(user: User): Promise<OtpAbiUser> {
+    await this.otpAbiUserService.deleteByUserId(user.id); // Delete all previous otp of this user
     const confirmationOtp = await this.otpAbiUserService.create(user.id);
     await this.emailService.sendConfirmationEmail('Login', user.username, confirmationOtp.otpCode);
     return confirmationOtp;
@@ -31,6 +32,37 @@ export class AuthService {
     const confirmationOtp = await this.otpAbiUserService.create(user.id, abiCode);
     await this.emailService.sendConfirmationEmail('Register', user.username, confirmationOtp.otpCode);
     return confirmationOtp;
+  }
+
+  async resendConfirmationOtp(publicKey: string): Promise<OtpAbiUser> {
+    const reloadConfirmationOtp = await this.otpAbiUserService.reloadOtp(publicKey);
+    if (!reloadConfirmationOtp) throw new BadRequestException('Public key to reload otp code is not valid');
+    await this.emailService.sendConfirmationEmail('Login', reloadConfirmationOtp.user.username, reloadConfirmationOtp.otpCode);    
+    return reloadConfirmationOtp;
+  }
+
+  private generatePassword(length: number = 6): string {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        password += characters[randomIndex];
+    }
+    return password;
+  }
+
+  async sendRecoveryPassword(email: string): Promise<void> {
+    const user = await this.userService.findByUsername(email);
+    if (!user) throw new NotFoundException('Email not found');
+    const generatePassword = this.generatePassword();
+    const hashedPassword = await bcrypt.hash(generatePassword, 10);
+    await this.userService.update(user.id, { hashedPassword });
+    await this.emailService.sendConfirmationEmail('Recovery', email, generatePassword as string)
+  }
+
+  async changePassword(userId: string, password: string): Promise<User> {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    return await this.userService.update(userId, { hashedPassword });
   }
 
   async validateOtpCode(publicKey: string, otpCode: number): Promise<OtpAbiUser> {
@@ -61,8 +93,6 @@ export class AuthService {
   }
 
   async register(user: AddUserDTO): Promise<iUser> {
-    const existingIdentity = await this.userService.findByUsername(user.username);
-    if (existingIdentity) throw new BadRequestException('Username already exists');
     const hashedPassword = await bcrypt.hash(user.password, 10);
     const userData: User = omit(user, 'password', 'abiCode');
     const usersCount = await this.userService.counterUsers();
@@ -70,7 +100,6 @@ export class AuthService {
     else userData.role = Role.Customer;
     const newUser = await this.userService.create({
       ...userData,
-      enabled: false,
       hashedPassword,
     });
     return omit(newUser, 'hashedPassword');

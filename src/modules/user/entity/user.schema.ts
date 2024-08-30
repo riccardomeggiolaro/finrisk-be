@@ -23,12 +23,6 @@ export type UserDocument = HydratedDocument<User>;
 })
 export class User {
   id?: string;
-  
-  @Prop()
-  firstName: string;
-
-  @Prop()
-  lastName: string;
 
   @Prop()
   company: string;
@@ -45,12 +39,17 @@ export class User {
   @Prop()
   hashedPassword?: string;
 
-  @Prop()
+  @Prop({ default: false })
   enabled?: boolean;
+
+  @Prop({ type: Date, default: Date.now })
+  createdAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-UserSchema.virtual('fullName').get(function() {
-    return `${this.firstName} ${this.lastName}`;
+// Create a TTL index that expires documents after 5 minutes if enabled is false
+UserSchema.index({ createdAt: 1 }, { 
+  expireAfterSeconds: 300, // 5 minutes
+  partialFilterExpression: { enabled: false } 
 });

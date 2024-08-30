@@ -14,7 +14,7 @@ export class GoogleEmailService {
     this.GOOGLE_APP_PASSWORD = this.configService.get<string>('GOOGLE_APP_PASSWORD');
   }
 
-  async sendConfirmationEmail(action: 'Login' | 'Register', email: string, otp: number): Promise<void> {
+  async sendConfirmationEmail(action: 'Login' | 'Register' | 'Recovery', email: string, token: number | string): Promise<void> {
     try {
       const transporter = createTransport({
         service: 'gmail',
@@ -33,8 +33,10 @@ export class GoogleEmailService {
           address: this.GOOGLE_EMAIL
         },
         to: [email],
-        subject: `${action} Confirmation`,
-        html: `<b>Hello</b>, please confirm your ${action.toLowerCase()} using this otp code: <strong>${otp}</strong>`,
+        subject: `${action} ${action === 'Recovery' ? 'Password' : 'Confirmation'}`,
+        html: `${action === 'Recovery' ? 
+          `<b>Hello</b>, please user this new password <strong>${token}</strong> to enter on your account and then remember to change it` : 
+          `<b>Hello</b>, please confirm your ${action.toLowerCase()} using this otp code: <strong>${token}</strong>`}`,
         attachments: []
       }
       

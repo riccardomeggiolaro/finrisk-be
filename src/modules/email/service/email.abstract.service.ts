@@ -3,5 +3,5 @@ import { Injectable } from "@nestjs/common";
 
 @Injectable()
 export abstract class EmailAbstractService {
-    abstract sendConfirmationEmail(action: 'Login' | 'Register', email: string, token: number): Promise<void>;
+    abstract sendConfirmationEmail(action: 'Login' | 'Register' | 'Recovery', email: string, token: number | string): Promise<void>;
 }

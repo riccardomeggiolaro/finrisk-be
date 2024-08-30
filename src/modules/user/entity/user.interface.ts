@@ -5,8 +5,6 @@ export enum Role {
 }
 
 export interface OptionsUser {
-    firstName?: string | null;
-    lastName?: string | null;
     company?: string | null;
     role?: Role | null;
     abiCodeId?: string | null;
