@@ -28,10 +28,8 @@ export class AuthService {
     return confirmationOtp;
   }
 
-  async sendConfirmationRegister(user: User, abiCode: string): Promise<OtpAbiUser> {
-    const confirmationOtp = await this.otpAbiUserService.create(user.id, abiCode);
-    await this.emailService.sendConfirmationEmail('Register', user.username, confirmationOtp.otpCode);
-    return confirmationOtp;
+  async sendConfirmationRegister(user: User, password: string): Promise<void> {
+    await this.emailService.sendConfirmationEmail('Register', user.username, password);
   }
 
   async resendConfirmationOtp(publicKey: string): Promise<OtpAbiUser> {
@@ -41,7 +39,7 @@ export class AuthService {
     return reloadConfirmationOtp;
   }
 
-  private generatePassword(length: number = 8): string {
+  generatePassword(length: number = 8): string {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let password = '';
     for (let i = 0; i < length; i++) {
@@ -92,15 +90,20 @@ export class AuthService {
     };
   }
 
-  async register(user: AddUserDTO): Promise<iUser> {
-    const hashedPassword = await bcrypt.hash(user.password, 10);
+  async register(user: AddUserDTO, password: string): Promise<iUser> {
+    const hashedPassword = await bcrypt.hash(password, 10);
     const userData: User = omit(user, 'password', 'abiCode');
     const usersCount = await this.userService.counterUsers();
+    const abiCodeId = (await this.driveService.createFolder(user.abiCode)).id;
+    const abiCodeElaboratedId = (await this.driveService.createFolder('ELABORATED', abiCodeId)).id;
     if (usersCount === 0) userData.role = Role.Admin;
     else userData.role = Role.Customer;
     const newUser = await this.userService.create({
       ...userData,
       hashedPassword,
+      abiCodeId,
+      abiCodeElaboratedId,
+      enabled: true
     });
     return omit(newUser, 'hashedPassword');
   }

@@ -24,9 +24,6 @@ export class AddUserDTO {
   )
   @IsEmail()
   username: string;
-
-  @MinLength(8)
-  password: string;
 }
 
 export class LoginDTO {

@@ -37,20 +37,12 @@ export class AuthController {
       return user;
     }
 
-    @Public()
     @Post('register')
-    async register(@Body() addUserDTO: AddUserDTO): Promise<{ message: string, publicKey: string }> {
-      const user = await this.authService.register(addUserDTO);
-      const confirmationOtp = await this.authService.sendConfirmationRegister(user, addUserDTO.abiCode);
-      return { message: 'Confirmation email sent', publicKey: confirmationOtp.publicKey };
-    }
-
-    @Public()
-    @Get('confirm-register/:publicKey/:otpCode')
-    async confirmRegister(@Param('publicKey') publicKey: string, @Param('otpCode', ParseIntPipe) otpCode: number): Promise<AuthenticatedUser> {
-      const otpValidated = await this.authService.validateOtpCode(publicKey, otpCode);
-      const user = await this.authService.enableUserAndCreateFolder(otpValidated.user.id, otpValidated.abiCode);
-      return this.authService.login(user);
+    async register(@Body() addUserDTO: AddUserDTO): Promise<iUser> {
+      const generateRandomPassword = this.authService.generatePassword();
+      const user = await this.authService.register(addUserDTO, generateRandomPassword);
+      await this.authService.sendConfirmationRegister(user, generateRandomPassword);
+      return user;
     }
 
     @Public()

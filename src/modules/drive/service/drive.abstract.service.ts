@@ -3,7 +3,7 @@ import { File } from '@nest-lab/fastify-multer';
 import { Injectable } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Readable } from 'stream';
-import { Folder, SearchFilesResponse } from '../entity/drive.interface';
+import { Folder } from '../entity/drive.interface';
 import { File as iFile } from '../entity/drive.interface';
 
 @Injectable()
@@ -12,8 +12,8 @@ export abstract class DriveAbstractService {
     abstract uploadFile(id: string, file: File): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
     abstract findFileByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile>;
     abstract findFileById(id: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile>;
-    abstract listFiles(name: string | null, folderParent?: string): Promise<SearchFilesResponse>;
-    abstract createFolder(name: string): Promise<{ id: string }>;
+    abstract listFiles(folderParent: string[], name?: string): Promise<iFile[]>;
+    abstract createFolder(name: string, parentFolder?: string): Promise<{ id: string, name: string }>;
     abstract findFolderByName(name: string): Promise<Folder>;
 
     protected createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = 2 * 1024 * 1024): Readable {

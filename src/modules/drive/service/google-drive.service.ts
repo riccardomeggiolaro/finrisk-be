@@ -2,7 +2,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
-import { Folder, GoogleServiceAccount, ProgressUploadFile, SearchFilesResponse } from '../entity/drive.interface';
+import { Folder, GoogleServiceAccount, ProgressUploadFile } from '../entity/drive.interface';
 import { DriveAbstractService } from './drive.abstract.service';
 import { File } from '@nest-lab/fastify-multer';
 import { Observable } from 'rxjs';
@@ -129,15 +129,19 @@ export class GoogleDriveService extends DriveAbstractService {
         const drive = await this.authorize();
         const response = await drive.files.list({
             q: `name='${fileName}' and '${folderParent || this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
-            fields: 'files(id, name)',
+            fields: 'files(id, name, parents, createdTime)',
             spaces: 'drive'
         });
         const id = response.data.files.length > 0 ? response.data.files[0].id : null;
+        const parents = response.data.files.length > 0 ? response.data.files[0].parents : null;
+        const createdTime = response.data.files.length > 0 ? response.data.files[0].createdTime : null;
         if (!id && throwErrorOnNotFound) throw new NotFoundException();
         if (!id && !throwErrorOnNotFound) return null;
         return {
           id,
-          name: fileName
+          name: fileName,
+          parents,
+          createdTime
         }
       } catch (err) {
         if (err.status === 404) throw new NotFoundException();
@@ -150,7 +154,7 @@ export class GoogleDriveService extends DriveAbstractService {
         const drive = await this.authorize();
         const response = await drive.files.get({
           fileId: id,
-          fields: 'id, name, parents',
+          fields: 'id, name, parents, createdTime',
           supportsAllDrives: true, // Necessario se utilizzi Drive condivisi
         });
         // Verifica se il file si trova nella cartella specificata
@@ -159,7 +163,9 @@ export class GoogleDriveService extends DriveAbstractService {
         if (!isInFolder && !throwErrorOnNotFound) return null;
         return {
           id,
-          name: response.data.name
+          name: response.data.name,
+          parents: response.data.parents,
+          createdTime: response.data.createdTime
         }
       } catch (err) {
         if (err.status === 404 && throwErrorOnNotFound) throw new NotFoundException();
@@ -167,32 +173,35 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async listFiles(name: string | null, folderParent?: string): Promise<SearchFilesResponse> {
+    async listFiles(folderParents: string[], name?: string): Promise<iFile[]> {
       try {
         const drive = await this.authorize();
+    
+        // Costruisci la query per cercare in tutte le cartelle specificate
+        const folderQuery = folderParents.map(folderId => `'${folderId}' in parents`).join(' or ');
+    
         const data = {
-          q: `'${folderParent || this.FOLDER_ID}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
-          fields: 'files(id, name)',
-          spaces: 'drive'
+          q: `(${folderQuery}) and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name, parents, createdTime)',
+          spaces: 'drive',
+          orderBy: 'createdTime desc'
         };
+
         if (name) data.q = `name contains '${name}' and` + data.q;
+        
         const response = await drive.files.list(data);
-        const quantity = response.data.files.length;
-        return {
-          files: response.data.files,
-          quantity
-        };
+        return response.data.files;
       } catch (err) {
         throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
     }
-
-    async createFolder(name: string): Promise<{ id: string, name: string }> {
+    
+    async createFolder(name: string, parentFolder?: string): Promise<{ id: string, name: string }> {
       const drive = await this.authorize();
       const fileMetadata = {
         name,
         mimeType: 'application/vnd.google-apps.folder',
-        parents: [this.FOLDER_ID]
+        parents: [parentFolder || this.FOLDER_ID]
       };
       try {
         const file = await drive.files.create({
@@ -219,7 +228,7 @@ export class GoogleDriveService extends DriveAbstractService {
         const exist = response.data.files.length > 0 ? true : false;
         const fileData = exist ? {
           id: response.data.files[0].id,
-          name
+          name,
         } : null;
         return fileData;
       } catch (err) {

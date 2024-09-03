@@ -34,6 +34,9 @@ export class User {
   abiCodeId?: string;
 
   @Prop()
+  abiCodeElaboratedId?: string;
+
+  @Prop()
   username: string;
 
   @Prop()

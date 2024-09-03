@@ -34,7 +34,7 @@ export class GoogleEmailService {
         },
         to: [email],
         subject: `${action} ${action === 'Recovery' ? 'Password' : 'Confirmation'}`,
-        html: `${action === 'Recovery' ? 
+        html: `${action === 'Recovery' || 'Register' ? 
           `<b>Hello</b>, please user this new password <strong>${token}</strong> to enter on your account and then remember to change it` : 
           `<b>Hello</b>, please confirm your ${action.toLowerCase()} using this otp code: <strong>${token}</strong>`}`,
         attachments: []

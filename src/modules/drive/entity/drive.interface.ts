@@ -18,6 +18,12 @@ export interface GoogleServiceAccount {
 export interface File {
     id: string;
     name: string;
+    parents: string[];
+    createdTime: Date;
+}
+
+export interface ElaboratedFile extends File {
+    elaborated: boolean;
 }
 
 export interface ExistFIle {
@@ -30,7 +36,7 @@ export interface SearchFilesResponse {
     quantity: number;
 }
 
-export interface Folder extends File {}
+export interface Folder extends Omit<File, 'parents' | 'createdTime'> {}
 
 export interface SearchFoldersResponse {
     folders: Folder[];
@@ -40,4 +46,9 @@ export interface SearchFoldersResponse {
 export interface ProgressUploadFile {
     progress$: Observable<number>; 
     finalId: Promise<string>
+}
+
+export interface FileFilters {
+    name?: string;
+    status?: 'all' | 'only-elaborated' | 'no-elaborated';
 }

@@ -4,7 +4,7 @@ import { BadRequestException, Controller, Get, HttpStatus, NotFoundException, Pa
 import { FileCsvPipe } from 'src/core/pipes/file-csv.pipe';
 import { DriveAbstractService } from '@modules/drive/service/drive.abstract.service';
 import { FastifyReply } from 'fastify';
-import { ExistFIle, SearchFilesResponse } from '@modules/drive/entity/drive.interface';
+import { ElaboratedFile, ExistFIle, FileFilters } from '@modules/drive/entity/drive.interface';
 import { User } from 'src/core/decorators/user.decorator';
 import { iUser } from '@api/auth/entity/auth.interface';
 import { File as iFile } from '@modules/drive/entity/drive.interface';
@@ -107,7 +107,16 @@ export class DriveController {
     @Get('list')
     async list(
       @User() user: iUser,
-      @Query('fileName') fileName: string): Promise<SearchFilesResponse> {
-        return await this.driveService.listFiles(fileName, user.abiCodeId);
+      @Query() filters: FileFilters): Promise<ElaboratedFile[]> {
+        const folderParents = [user.abiCodeId, user.abiCodeElaboratedId]
+        if (filters.status === 'no-elaborated') folderParents.splice(1, 1);
+        else if (filters.status === 'only-elaborated') folderParents.splice(0, 1);
+        const list = await this.driveService.listFiles(folderParents, filters.name);
+        return list.map((file: iFile) => {
+          return {
+            ...file,
+            elaborated: file.parents[0] === user.abiCodeElaboratedId ? true : false
+          }
+        })
     }
 }
