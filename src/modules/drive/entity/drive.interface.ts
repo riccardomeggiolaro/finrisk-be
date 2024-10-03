@@ -50,5 +50,5 @@ export interface ProgressUploadFile {
 
 export interface FileFilters {
     name?: string;
-    status?: 'all' | 'only-elaborated' | 'no-elaborated';
+    status?: 'only-elaborated' | 'no-elaborated';
 }

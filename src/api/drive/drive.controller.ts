@@ -8,10 +8,14 @@ import { ElaboratedFile, ExistFIle, FileFilters } from '@modules/drive/entity/dr
 import { User } from 'src/core/decorators/user.decorator';
 import { iUser } from '@api/auth/entity/auth.interface';
 import { File as iFile } from '@modules/drive/entity/drive.interface';
+import { RunDriveScriptsService } from '@modules/run-drive-scripts/run-drive-scripts.service';
 
 @Controller('drive')
 export class DriveController {
-    constructor(private readonly driveService: DriveAbstractService) {}
+    constructor(
+      private readonly driveService: DriveAbstractService,
+      private readonly runDriveScriptsService: RunDriveScriptsService
+    ) {}
 
     @Post('upload')
     @UseInterceptors(FileInterceptor('file'))
@@ -119,4 +123,11 @@ export class DriveController {
           }
         })
     }
+
+    // @Get('elaborate-all-files')
+    // async elaborateAllFiles(@User() user: iUser): Promise<{ message: string, errors?: string[] }> {
+    //   const list = await this.driveService.listFiles(user.abiCodeId)
+    //   const folder = await this.driveService.findFolderById(user.abiCodeId);
+    //   return await this.runDriveScriptsService.elaborateAllFiles(folder.name);
+    // }
 }

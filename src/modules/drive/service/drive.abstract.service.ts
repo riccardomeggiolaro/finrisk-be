@@ -15,6 +15,7 @@ export abstract class DriveAbstractService {
     abstract listFiles(folderParent: string[], name?: string): Promise<iFile[]>;
     abstract createFolder(name: string, parentFolder?: string): Promise<{ id: string, name: string }>;
     abstract findFolderByName(name: string): Promise<Folder>;
+    abstract findFolderById(id: string): Promise<Folder>;
 
     protected createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = 2 * 1024 * 1024): Readable {
         let currentPosition = 0;

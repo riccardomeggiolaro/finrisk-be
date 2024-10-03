@@ -14,6 +14,7 @@ import { DriveApiModule } from '@api/drive/drive.module';
 import { AuthApiModule } from '@api/auth/auth.module';
 import { EmailAbstractService, EmailModule, GoogleEmailService } from '@modules/email';
 import { OtpAbiUserAbstractService, OtpAbiUserModule, OtpAbiUserService } from '@modules/otp-abi-user';
+import { RunDriveScriptsModule } from '@modules/run-drive-scripts/run-drive-scripts.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { OtpAbiUserAbstractService, OtpAbiUserModule, OtpAbiUserService } from '
     OtpAbiUserModule.forRoot([
       { provide: OtpAbiUserAbstractService, useClass: OtpAbiUserService }
     ]),
+    RunDriveScriptsModule,
     FastifyMulterModule,
     AuthApiModule,
     DriveApiModule

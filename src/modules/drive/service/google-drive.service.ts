@@ -235,4 +235,22 @@ export class GoogleDriveService extends DriveAbstractService {
         throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
     }
+
+    async findFolderById(id: string): Promise<Folder> {
+      try {
+        const drive = await this.authorize();
+        const response = await drive.files.get({
+          fileId: id,
+          fields: 'id, name',
+          supportsAllDrives: true, // Necessario se utilizzi Drive condivisi
+        });
+        return {
+          id,
+          name: response.data.name,
+        }
+      } catch (err) {
+        if (err.status === 404) throw new NotFoundException();
+        throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
+      } 
+    }
 }
