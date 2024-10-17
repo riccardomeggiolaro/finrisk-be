@@ -8,6 +8,7 @@ import { File } from '@nest-lab/fastify-multer';
 import { Observable } from 'rxjs';
 import { ExternalServiceException } from 'src/core/exceptions/external-service.exception';
 import { File as iFile } from '../entity/drive.interface';
+import { GaxiosError } from 'gaxios';
 
 @Injectable()
 export class GoogleDriveService extends DriveAbstractService {
@@ -37,7 +38,7 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async createFile(file: File, folderParent?: string): Promise<ProgressUploadFile> {
+    async createFile(file: File, folderParent?: string, abortSignal?: AbortSignal): Promise<ProgressUploadFile> {
       const fileMetadata = {
         name: file.originalname,
         parents: [folderParent || this.FOLDER_ID]
@@ -60,21 +61,30 @@ export class GoogleDriveService extends DriveAbstractService {
   
         const progress$ = new Observable<number>(observer => {
           (async() => {
-            const res = await drive.files.create(
-              {
-                requestBody: fileMetadata,
-                media: media,
-                fields: 'id',
-              },
-              {
-                onUploadProgress: (progressEvent: { bytesRead: number; }) => {
-                  const progress = progressEvent.bytesRead / file.size * 100;
-                  observer.next(progress);
+            try {
+              const res = await drive.files.create(
+                {
+                  requestBody: fileMetadata,
+                  media: media,
+                  fields: 'id',
                 },
+                {
+                  onUploadProgress: (progressEvent: { bytesRead: number; }) => {
+                    const progress = progressEvent.bytesRead / file.size * 100;
+                    observer.next(progress);
+                  },
+                  signal: abortSignal
+                }
+              );
+              observer.complete();
+              resolveId(res.data.id);
+            } catch (error) {
+              // Gestisci GaxiosError specificamente
+              if (error instanceof GaxiosError && error.message === 'The user aborted a request.') {
+                observer.complete(); // Completa l'osservatore
+                return; // Esci dal catch
               }
-            );
-            observer.complete();
-            resolveId(res.data.id);
+            }
           })();
         });
       
@@ -84,45 +94,56 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }
 
-    async uploadFile(fileId: string, file: File): Promise<ProgressUploadFile> {
+    async uploadFile(fileId: string, file: File, abortSignal?: AbortSignal): Promise<ProgressUploadFile> {
       const fileStream = this.createReadStreamFromBuffer(file.buffer);
-    
+  
       try {
-        const drive = await this.authorize();
-
-        let resolveId: (value: string) => void;
-        const finalId = new Promise<string>((resolve) => {
-          resolveId = resolve;
-        });
-    
-        const progress$ = new Observable<number>(observer => {
-          (async() => {
-            const res = await drive.files.update(
-              {
-                fileId,
-                requestBody: {},
-                media: {
-                  mimeType: file.mimetype,
-                  body: fileStream,
-                },
-                fields: 'id',
-              },
-              {
-                onUploadProgress: (progressEvent: { bytesRead: number; }) => {
-                  const progress = progressEvent.bytesRead / file.size * 100;
-                  observer.next(progress);
-                },
-              }
-            );
-            observer.complete();
-            resolveId(res.data.id);
-          })();
-        });
-        return { progress$, finalId };
+          const drive = await this.authorize();
+  
+          let resolveId: (value: string) => void;
+          const finalId = new Promise<string>((resolve) => {
+              resolveId = resolve;
+          });
+  
+          const progress$ = new Observable<number>(observer => {
+              (async () => {
+                  try {
+                      const res = await drive.files.update(
+                          {
+                              fileId,
+                              requestBody: {},
+                              media: {
+                                  mimeType: file.mimetype,
+                                  body: fileStream,
+                              },
+                              fields: 'id',
+                          },
+                          {
+                              onUploadProgress: (progressEvent: { bytesRead: number; }) => {
+                                  const progress = progressEvent.bytesRead / file.size * 100;
+                                  observer.next(progress);
+                              },
+                              // Passa il segnale di aborto se fornito
+                              signal: abortSignal,
+                          }
+                      );
+                      observer.complete();
+                      resolveId(res.data.id);
+                    } catch (error) {
+                      // Gestisci GaxiosError specificamente
+                      if (error instanceof GaxiosError && error.message === 'The user aborted a request.') {
+                        observer.complete(); // Completa l'osservatore
+                        return; // Esci dal catch
+                      }
+                    }
+              })();
+          });
+  
+          return { progress$, finalId };
       } catch (err) {
-        throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
+          throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
-    }
+    }  
 
     async findFileByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile> {
       try {
@@ -175,26 +196,31 @@ export class GoogleDriveService extends DriveAbstractService {
 
     async listFiles(folderParents: string[], name?: string): Promise<iFile[]> {
       try {
-        const drive = await this.authorize();
-    
-        // Costruisci la query per cercare in tutte le cartelle specificate
-        const folderQuery = folderParents.map(folderId => `'${folderId}' in parents`).join(' or ');
-    
-        const data = {
-          q: `(${folderQuery}) and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
-          fields: 'files(id, name, parents, createdTime)',
-          spaces: 'drive',
-          orderBy: 'createdTime desc'
-        };
-
-        if (name) data.q = `name contains '${name}' and` + data.q;
-        
-        const response = await drive.files.list(data);
-        return response.data.files;
+          const drive = await this.authorize();
+  
+          // Costruisci la query per cercare in tutte le cartelle specificate
+          const folderQuery = folderParents.map(folderId => `'${folderId}' in parents`).join(' or ');
+  
+          // Crea la query di base
+          let query = `(${folderQuery}) and mimeType != 'application/vnd.google-apps.folder' and trashed=false`;
+  
+          // Aggiungi la condizione sul nome se fornito
+          if (name) {
+              query = `name contains '${name}' and ` + query;
+          }
+  
+          const response = await drive.files.list({
+              q: query,
+              fields: 'files(id, name, parents, createdTime)',
+              spaces: 'drive',
+              orderBy: 'createdTime desc',
+          });
+  
+          return response.data.files || []; // Ritorna un array vuoto se non ci sono file
       } catch (err) {
-        throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
+          throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
-    }
+    }  
     
     async createFolder(name: string, parentFolder?: string): Promise<{ id: string, name: string }> {
       const drive = await this.authorize();
@@ -253,4 +279,64 @@ export class GoogleDriveService extends DriveAbstractService {
         throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       } 
     }
+
+    private async checkAndRemovePartialFile(fileName: string, folderParent?: string): Promise<void> {
+      const drive = await this.authorize();
+      
+      const response = await drive.files.list({
+          q: `name='${fileName}' and '${folderParent || this.FOLDER_ID}' in parents and trashed=false`,
+          fields: 'files(id)',
+          spaces: 'drive',
+      });
+      
+      const files = response.data.files;
+      
+      for (const file of files) {
+          await drive.files.delete({ fileId: file.id });
+          console.log(`File parziale '${fileName}' rimosso con successo.`);
+      }
+    }
+
+    async deleteByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<void> {
+      try {
+        const drive = await this.authorize();
+    
+        // Cerca il file per nome e cartella
+        const response = await drive.files.list({
+          q: `name='${fileName}' and '${folderParent}' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)',
+          spaces: 'drive'
+      });
+    
+        const files = response.data.files;
+    
+        console.log(files);
+
+        if (files.length === 0) {
+          console.log(`Nessun file trovato con il nome '${fileName}' nella cartella specificata.`);
+          return; // Nessun file da eliminare
+        }
+    
+        // Elimina il file trovato
+        const fileId = files[0].id;
+        await drive.files.delete({ fileId });
+    
+        console.log(`File '${fileName}' rimosso con successo.`);
+      } catch (err) {
+        if (err.status === 404) throw new NotFoundException();
+        throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
+      }
+    }
+
+    async deleteById(fileId: string, throwErrorOnNotFound: boolean): Promise<void> {
+      try {
+          const drive = await this.authorize();
+  
+          // Prova a eliminare il file con l'ID specificato
+          await drive.files.delete({ fileId });
+      } catch (err) {
+          if (err.status === 404) throw new NotFoundException(`File con ID '${fileId}' non trovato.`);
+          throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
+      }
+  }  
 }

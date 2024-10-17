@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { FileInterceptor, File } from '@nest-lab/fastify-multer';
-import { BadRequestException, Controller, Get, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UploadedFile, UseInterceptors, Delete } from '@nestjs/common';
 import { FileCsvPipe } from 'src/core/pipes/file-csv.pipe';
 import { DriveAbstractService } from '@modules/drive/service/drive.abstract.service';
 import { FastifyReply, FastifyRequest } from 'fastify';
@@ -26,8 +26,6 @@ export class DriveController {
       @Req() req: FastifyRequest,
       @Res() res: FastifyReply,
     ): Promise<void> {
-
-      let isPaused: boolean = false;
 
       // se passato l'id, controllo che l'id del file da modificare esista e abbia lo stesso nome del file nuovo passato
       if (file_id_overwrite) {
@@ -67,42 +65,26 @@ export class DriveController {
         'Access-Control-Allow-Origin': '*'
       });
 
+      let fileId: string | null = null;
+
       // funzione custom per inviare gli eventi
       const sendEvent = (eventType: string, data: any) => {
         const eventString = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
         res.raw.write(eventString);
       };
 
-      // Function to handle client messages
-      const handleClientMessage = (message: string) => {
-        console.log(`Received message from client (${user.id}):`, message);
+      const controller = new AbortController();
+      const { signal } = controller;      
+
+      const { progress$, finalId } = file_id_overwrite ? await this.driveService.uploadFile(file_id_overwrite, file, signal) : await this.driveService.createFile(file, user.abiCodeId, signal);
+
+      res.raw.on('close', async () => {
+        if (!fileId) {
+          // Per interrompere l'upload
+          controller.abort();
+        }
+      });
     
-        if (message.toLowerCase() === 'pause') {
-          isPaused = true;
-          sendEvent('status', { message: 'Upload paused' });
-        } else if (message.toLowerCase() === 'resume') {
-          isPaused = false;
-          sendEvent('status', { message: 'Upload resumed' });
-        } else {
-          sendEvent('status', { message: 'Message received: ' + message });
-        }
-      };
-
-      // Set up client disconnect detection
-      res.raw.on('close', () => {
-        console.log('Client disconnected');
-      });
-
-      // Set up message listener
-      req.raw.on('data', (chunk) => {
-        const message = chunk.toString().trim();
-        if (message.startsWith('data: ')) {
-          handleClientMessage(message.slice(6));
-        }
-      });
-
-      const { progress$, finalId } = file_id_overwrite ? await this.driveService.uploadFile(file_id_overwrite, file) : await this.driveService.createFile(file, user.abiCodeId);
-
       await new Promise<void>((resolve, reject) => {
         progress$.subscribe({
           next: (progress: number) => {
@@ -114,7 +96,8 @@ export class DriveController {
             res.raw.end();
           },
           complete: async () => {
-            const fileId = await finalId;
+            const result = await finalId;
+            fileId = result;
             sendEvent('complete', { fileId });
             resolve();
             res.raw.end();
@@ -162,6 +145,14 @@ export class DriveController {
             elaborated: file.parents[0] === user.abiCodeElaboratedId ? true : false
           }
         })
+    }
+
+    @Delete('id/:id')
+    async deleteById(
+      @User() user: iUser,
+      @Param('id') id: string
+    ): Promise<void> {
+      await this.driveService.deleteById(id, true, user.abiCodeId);      
     }
 
     // @Get('elaborate-all-files')
