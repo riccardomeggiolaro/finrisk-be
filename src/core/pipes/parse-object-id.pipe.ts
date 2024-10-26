@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
 

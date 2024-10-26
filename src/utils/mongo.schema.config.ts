@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { SchemaOptions } from "mongoose";
 
 export const getMongoSchemaConfig = (id: boolean = true, timestamp: boolean = true, versionKey: boolean = true) => {

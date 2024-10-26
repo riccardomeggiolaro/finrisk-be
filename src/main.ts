@@ -1,10 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { useContainer } from 'class-validator';
 import { NestFactory, Reflector } from '@nestjs/core';
-import {
-  FastifyAdapter,
-  NestFastifyApplication,
-} from '@nestjs/platform-fastify';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module';
 import fastifyCors from '@fastify/cors';
 import fastifyCsrf  from '@fastify/csrf-protection';

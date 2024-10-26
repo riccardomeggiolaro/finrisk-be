@@ -1,13 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { Injectable, Type } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
-import {
-  ValidationArguments,
-  ValidationOptions,
-  ValidatorConstraint,
-  ValidatorConstraintInterface,
-  registerDecorator
-} from 'class-validator';
+import { ValidationArguments, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface, registerDecorator } from 'class-validator';
 import { Connection } from 'mongoose';
 
 @ValidatorConstraint({ async: true })
@@ -29,8 +23,8 @@ export class IsExistingProvider implements ValidatorConstraintInterface {
 }
 
 export const IsExisting =
-  <TModel extends Object>(ModelClass: Type<TModel>, options?: ValidationOptions) =>
-  (object: Object, propertyName: string) =>
+  <TModel extends object>(ModelClass: Type<TModel>, options?: ValidationOptions) =>
+  (object: object, propertyName: string) =>
     registerDecorator({
       name: `IsExisting`,
       target: object.constructor,
