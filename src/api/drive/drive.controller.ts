@@ -42,6 +42,13 @@ export class DriveController {
           status: HttpStatus.BAD_REQUEST
         });
       } else {
+        const abicode = await this.driveService.findFileById(user.abiCodeId, true);
+
+        if (!file.originalname.includes(`_${abicode.name}_`)) throw new BadRequestException({
+          message: "File name doesn't include personal abi code associated in this format: '_abicode_'",
+          status: HttpStatus.BAD_REQUEST
+        });
+        
         // se non passato l'id, controllo che il nome del file passato non sia già presente 
         const fileJustExist: iFile = await this.driveService.findFileByName(file.originalname, false, user.abiCodeId);
         if (fileJustExist) throw new BadRequestException({
@@ -122,29 +129,22 @@ export class DriveController {
       res.send(buffer);
     }
 
-    @Get('find/name/:fileName')
-    async findFile(
-      @User() user: iUser,
-      @Param('fileName') fileName: string): Promise<iFile> {
-        return await this.driveService.findFileByName(fileName, true, user.abiCodeId);
-    }
-
     @Get('exist/name/:fileName')
     async existFile(
       @User() user: iUser,
       @Param('fileName') fileName: string): Promise<ExistFIle> {
+        const abicode = await this.driveService.findFileById(user.abiCodeId, true);
+
+        if (!fileName.includes(`_${abicode.name}_`)) throw new BadRequestException({
+          message: "File name doesn't include personal abi code associated in this format: '_abicode_'",
+          status: HttpStatus.BAD_REQUEST
+        });
+
         const file = await this.driveService.findFileByName(fileName, false, user.abiCodeId);
         return {
           exist: file ? true : false,
           data: file
         }
-    }
-
-    @Get('find/id/:id')
-    async findFileById(
-      @User() user: iUser,
-      @Param('id') id: string): Promise<iFile> {
-        return await this.driveService.findFileById(id, true, user.abiCodeId);
     }
 
     @Get('list')
@@ -171,12 +171,11 @@ export class DriveController {
       await this.driveService.deleteById(id, true, user.abiCodeId);      
     }
 
-    @Get('id/:id')
-    async downloadById(
+    @Get('folder')
+    async folderName(
       @User() user: iUser,
-      @Param('id') id: string
     ): Promise<any> {
-      return await this.driveService.downloadById(id, true, user.abiCodeId);
+      return await this.driveService.findFolderById(user.abiCodeId);
     }
 
     // @Get('elaborate-all-files')
