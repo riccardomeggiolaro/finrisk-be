@@ -18,6 +18,7 @@ export abstract class DriveAbstractService {
     abstract findFolderById(id: string): Promise<Folder>;
     abstract deleteByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<void>;
     abstract deleteById(id: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<void>;
+    abstract downloadById(id: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<{ buffer: Buffer, fileName: string }>;
 
     protected createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = 2 * 1024 * 1024): Readable {
         let currentPosition = 0;

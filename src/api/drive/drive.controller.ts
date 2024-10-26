@@ -106,6 +106,22 @@ export class DriveController {
       });
     }
 
+    @Get('download/:id')
+    async downloadFile(
+      @User() user: iUser,
+      @Param('id') id: string,
+      @Res() res: FastifyReply
+    ): Promise<void> {
+      const { buffer, fileName } = await this.driveService.downloadById(id, true);
+    
+      // Imposta l'intestazione Content-Disposition per forzare il download con il nome file corretto
+      res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+      res.header('Content-Type', 'application/octet-stream');
+    
+      // Invia il buffer come risposta
+      res.send(buffer);
+    }
+
     @Get('find/name/:fileName')
     async findFile(
       @User() user: iUser,
@@ -153,6 +169,14 @@ export class DriveController {
       @Param('id') id: string
     ): Promise<void> {
       await this.driveService.deleteById(id, true, user.abiCodeId);      
+    }
+
+    @Get('id/:id')
+    async downloadById(
+      @User() user: iUser,
+      @Param('id') id: string
+    ): Promise<any> {
+      return await this.driveService.downloadById(id, true, user.abiCodeId);
     }
 
     // @Get('elaborate-all-files')

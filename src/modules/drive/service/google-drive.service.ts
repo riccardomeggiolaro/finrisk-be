@@ -145,6 +145,34 @@ export class GoogleDriveService extends DriveAbstractService {
       }
     }  
 
+    async downloadById(id: string, throwErrorOnNotFound: boolean): Promise<{ buffer: Buffer, fileName: string }> {
+      try {
+        const drive = await this.authorize();
+    
+        // Ottieni il nome del file
+        const metadata = await drive.files.get({
+          fileId: id,
+          fields: 'name'
+        });
+        const fileName = metadata.data.name;
+        if (!fileName) throw new Error('Nome file non trovato nei metadati.');
+    
+        // Ottieni il contenuto del file
+        const response = await drive.files.get(
+          { fileId: id, alt: 'media' },
+          { responseType: 'arraybuffer' }
+        );
+    
+        const buffer = Buffer.from(response.data as ArrayBuffer);
+        return { buffer, fileName };
+      } catch (err) {
+        if (err.status === 404 && throwErrorOnNotFound) {
+          throw new NotFoundException(`File con ID ${id} non trovato`);
+        }
+        throw new ExternalServiceException(`Errore nel download del file: ${err.message}`, this.SCOPE_GOOGLE_DRIVE[0]);
+      }
+    }    
+
     async findFileByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile> {
       try {
         const drive = await this.authorize();
@@ -280,23 +308,6 @@ export class GoogleDriveService extends DriveAbstractService {
       } 
     }
 
-    private async checkAndRemovePartialFile(fileName: string, folderParent?: string): Promise<void> {
-      const drive = await this.authorize();
-      
-      const response = await drive.files.list({
-          q: `name='${fileName}' and '${folderParent || this.FOLDER_ID}' in parents and trashed=false`,
-          fields: 'files(id)',
-          spaces: 'drive',
-      });
-      
-      const files = response.data.files;
-      
-      for (const file of files) {
-          await drive.files.delete({ fileId: file.id });
-          console.log(`File parziale '${fileName}' rimosso con successo.`);
-      }
-    }
-
     async deleteByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<void> {
       try {
         const drive = await this.authorize();
@@ -323,7 +334,7 @@ export class GoogleDriveService extends DriveAbstractService {
     
         console.log(`File '${fileName}' rimosso con successo.`);
       } catch (err) {
-        if (err.status === 404) throw new NotFoundException();
+        if (err.status === 404 && throwErrorOnNotFound) throw new NotFoundException();
         throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
     }
@@ -335,8 +346,8 @@ export class GoogleDriveService extends DriveAbstractService {
           // Prova a eliminare il file con l'ID specificato
           await drive.files.delete({ fileId });
       } catch (err) {
-          if (err.status === 404) throw new NotFoundException(`File con ID '${fileId}' non trovato.`);
+          if (err.status === 404 && throwErrorOnNotFound) throw new NotFoundException(`File con ID '${fileId}' non trovato.`);
           throw new ExternalServiceException(err.message, this.SCOPE_GOOGLE_DRIVE[0]);
       }
-  }  
+  }
 }
