@@ -33,6 +33,13 @@ export class AuthController {
       return await this.authService.login(otpValidated.user);
     }
 
+    @Public()
+    @Post('resend-confirm-login/:publicKey')
+    async resendConfirmLogin(@Param('publicKey') publicKey: string, @Body() body: RecoveryPasswordDTO): Promise<{ message: string, publicKey: string } | AuthenticatedUser> {
+      const confirmationOtp = await this.authService.resendConfirmationOtp(publicKey, body.folderParent);
+      return { message: 'Confirmation email resent', publicKey: confirmationOtp.publicKey };      
+    }
+
     @Get('profile')
     async me(@User() user: iUser): Promise<iUser> {
       return user;
