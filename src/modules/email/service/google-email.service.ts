@@ -14,7 +14,7 @@ export class GoogleEmailService {
     this.GOOGLE_APP_PASSWORD = this.configService.get<string>('GOOGLE_APP_PASSWORD');
   }
 
-  async sendConfirmationEmail(action: 'Login' | 'Register' | 'Recovery', email: string, token: number | string): Promise<void> {
+  async sendConfirmationEmail(nameService: string, action: 'Login' | 'Register' | 'Recovery', email: string, token: number | string): Promise<void> {
     try {
       const transporter = createTransport({
         service: 'gmail',
@@ -29,7 +29,7 @@ export class GoogleEmailService {
   
       const emailOptions = {
         from: {
-          name: "Finrisk",
+          name: nameService,
           address: this.GOOGLE_EMAIL
         },
         to: [email],

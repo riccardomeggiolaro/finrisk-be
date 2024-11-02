@@ -13,11 +13,11 @@ export class UserService extends UserAbstractService {
     super();
   }
 
-  async findByUsername(username: string, enabled?: boolean): Promise<User> {
+  async findByUsername(username: string, folderParent?: string): Promise<User> {
     const q: object = {
       username
     }
-    if (enabled) q["enabled"] = enabled;
+    if (folderParent) q["folderParent"] = folderParent;
     const user = await this.userSchema.findOne(q);
     return user ? user.toObject() : null;
   }

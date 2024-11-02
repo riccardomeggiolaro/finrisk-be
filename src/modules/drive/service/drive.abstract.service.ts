@@ -8,17 +8,16 @@ import { File as iFile } from '../entity/drive.interface';
 
 @Injectable()
 export abstract class DriveAbstractService {
-    abstract createFile(file: File, folderParent?: string, abortSignal?: AbortSignal): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
-    abstract uploadFile(id: string, file: File, abortSignal?: AbortSignal): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
-    abstract findFileByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile>;
-    abstract findFileById(id: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<iFile>;
+    abstract createFile(file: File, folderParent: string, abortSignal: AbortSignal): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
+    abstract uploadFile(id: string, file: File, abortSignal: AbortSignal, throwErrorOnNotFound: boolean): Promise<{ progress$: Observable<number>; finalId: Promise<string> }>;
+    abstract downloadFile(id: string, folderParent: string, throwErrorOnNotFound: boolean): Promise<{ buffer: Buffer, fileName: string }>;
     abstract listFiles(folderParent: string[], name?: string): Promise<iFile[]>;
-    abstract createFolder(name: string, parentFolder?: string): Promise<{ id: string, name: string }>;
-    abstract findFolderByName(name: string): Promise<Folder>;
+    abstract findFileByName(name: string, folderParent: string, throwErrorOnNotFound: boolean): Promise<iFile>;
+    abstract findFileById(id: string, folderParent: string, throwErrorOnNotFound: boolean): Promise<iFile>;
+    abstract createFolder(name: string, parentFolder: string): Promise<{ id: string, name: string }>;
+    abstract findFolderByName(name: string, folderParent: string): Promise<Folder>;
     abstract findFolderById(id: string): Promise<Folder>;
-    abstract deleteByName(fileName: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<void>;
-    abstract deleteById(id: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<void>;
-    abstract downloadById(id: string, throwErrorOnNotFound: boolean, folderParent?: string): Promise<{ buffer: Buffer, fileName: string }>;
+    abstract deleteById(id: string, folderParent: string, throwErrorOnNotFound: boolean): Promise<void>;
 
     protected createReadStreamFromBuffer(buffer: Buffer, chunkSize: number = 2 * 1024 * 1024): Readable {
         let currentPosition = 0;

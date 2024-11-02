@@ -15,7 +15,13 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
 
   async validate(request: Request, username: string, password: string): Promise<any> {
     try {
-      return await this.authService.validateUser(username, password);
+      const folderParent = request.body["folderParent"];
+      // console.log("LoginDTO from validate", {
+      //   username,
+      //   password,
+      //   folderParent
+      // })
+      return await this.authService.validateUser(username, password, folderParent);
     } catch (error) {
       throw new UnauthorizedException('Invalid credentials. Please check your username and password.');
     }

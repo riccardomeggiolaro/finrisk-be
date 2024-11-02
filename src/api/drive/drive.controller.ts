@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { FileInterceptor, File } from '@nest-lab/fastify-multer';
-import { BadRequestException, Controller, Get, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UploadedFile, UseInterceptors, Delete } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UploadedFile, UseInterceptors, Delete, UseGuards } from '@nestjs/common';
 import { FileCsvPipe } from 'src/core/pipes/file-csv.pipe';
 import { DriveAbstractService } from '@modules/drive/service/drive.abstract.service';
 import { FastifyReply, FastifyRequest } from 'fastify';
@@ -9,8 +9,10 @@ import { User } from 'src/core/decorators/user.decorator';
 import { iUser } from '@api/auth/entity/auth.interface';
 import { File as iFile } from '@modules/drive/entity/drive.interface';
 import { RunDriveScriptsService } from '@modules/run-drive-scripts/run-drive-scripts.service';
+import { CantAdminGuard } from 'src/core/guards/cant-admin.guard';
 
 @Controller('drive')
+@UseGuards(CantAdminGuard)
 export class DriveController {
     constructor(
       private readonly driveService: DriveAbstractService,
@@ -29,7 +31,7 @@ export class DriveController {
 
       // se passato l'id, controllo che l'id del file da modificare esista e abbia lo stesso nome del file nuovo passato
       if (file_id_overwrite) {
-        const existUpdatingFile: iFile = await this.driveService.findFileById(file_id_overwrite, false, user.abiCodeId);
+        const existUpdatingFile: iFile = await this.driveService.findFileById(file_id_overwrite, user.abiCodeId, false);
         if (!existUpdatingFile) throw new NotFoundException({
           message: 'Not Found',
           file_id_overwrite,
@@ -42,7 +44,7 @@ export class DriveController {
           status: HttpStatus.BAD_REQUEST
         });
       } else {
-        const abicode = await this.driveService.findFileById(user.abiCodeId, true);
+        const abicode = await this.driveService.findFileById(user.abiCodeId, user.abiCodeId, true);
 
         if (!file.originalname.includes(`_${abicode.name}_`)) throw new BadRequestException({
           message: "File name doesn't include personal abi code associated in this format: '_abicode_'",
@@ -50,7 +52,7 @@ export class DriveController {
         });
         
         // se non passato l'id, controllo che il nome del file passato non sia già presente 
-        const fileJustExist: iFile = await this.driveService.findFileByName(file.originalname, false, user.abiCodeId);
+        const fileJustExist: iFile = await this.driveService.findFileByName(file.originalname, user.abiCodeId, false);
         if (fileJustExist) throw new BadRequestException({
           message: 'File name just exist in drive',
           existing_file: fileJustExist,
@@ -83,7 +85,7 @@ export class DriveController {
       const controller = new AbortController();
       const { signal } = controller;      
 
-      const { progress$, finalId } = file_id_overwrite ? await this.driveService.uploadFile(file_id_overwrite, file, signal) : await this.driveService.createFile(file, user.abiCodeId, signal);
+      const { progress$, finalId } = file_id_overwrite ? await this.driveService.uploadFile(file_id_overwrite, file, signal, false) : await this.driveService.createFile(file, user.abiCodeId, signal);
 
       res.raw.on('close', async () => {
         if (!fileId) {
@@ -119,7 +121,7 @@ export class DriveController {
       @Param('id') id: string,
       @Res() res: FastifyReply
     ): Promise<void> {
-      const { buffer, fileName } = await this.driveService.downloadById(id, true);
+      const { buffer, fileName } = await this.driveService.downloadFile(id, user.abiCodeId, true);
     
       // Imposta l'intestazione Content-Disposition per forzare il download con il nome file corretto
       res.header('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
@@ -133,14 +135,14 @@ export class DriveController {
     async existFile(
       @User() user: iUser,
       @Param('fileName') fileName: string): Promise<ExistFIle> {
-        const abicode = await this.driveService.findFileById(user.abiCodeId, true);
+        const abicode = await this.driveService.findFileById(user.abiCodeId, user.abiCodeId, true);
 
         if (!fileName.includes(`_${abicode.name}_`)) throw new BadRequestException({
           message: "File name doesn't include personal abi code associated in this format: '_abicode_'",
           status: HttpStatus.BAD_REQUEST
         });
 
-        const file = await this.driveService.findFileByName(fileName, false, user.abiCodeId);
+        const file = await this.driveService.findFileByName(fileName, user.abiCodeId, false);
         return {
           exist: file ? true : false,
           data: file
@@ -168,7 +170,7 @@ export class DriveController {
       @User() user: iUser,
       @Param('id') id: string
     ): Promise<void> {
-      await this.driveService.deleteById(id, true, user.abiCodeId);      
+      await this.driveService.deleteById(id, user.abiCodeId, true);      
     }
 
     @Get('folder')

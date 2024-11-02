@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';
 import { Injectable } from '@nestjs/common';
 import { UserAbstractService } from '@modules/user';
@@ -11,7 +12,12 @@ export class IsUsernameUniqueConstraint implements ValidatorConstraintInterface 
   ) {}
 
   async validate(username: string, args: ValidationArguments) {
-    const existingUsername = await this.userService.findByUsername(username, true);
+    // Access the finService from the DTO
+    const folderParent = (args.object as any).folderParent;
+
+    console.log(folderParent);
+
+    const existingUsername = await this.userService.findByUsername(username, folderParent);
     return existingUsername ? false : true;
   }
 

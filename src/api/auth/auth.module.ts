@@ -12,8 +12,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from 'src/core/guards/jwt-auth.guard';
 import { OtpAbiUserModule } from '@modules/otp-abi-user';
-import { IsAbiCodeUniqueConstraint } from 'src/core/validators/otp-existing.validator';
+import { IsAbiCodeUniqueConstraint } from 'src/core/validators/is-abicode-unique.validator';
 import { IsUsernameUniqueConstraint } from 'src/core/validators/username-existing.validator';
+import { IsValidFolderConstraint } from 'src/core/validators/is-valid-folder.validator';
 
 @Module({
   imports: [
@@ -39,7 +40,8 @@ import { IsUsernameUniqueConstraint } from 'src/core/validators/username-existin
       useClass: JwtAuthGuard
     },
     IsAbiCodeUniqueConstraint,
-    IsUsernameUniqueConstraint
+    IsUsernameUniqueConstraint,
+    IsValidFolderConstraint
   ],
 })
 export class AuthApiModule {}

@@ -3,11 +3,12 @@ import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards } from '@ne
 import { Public } from 'src/core/decorators/is.public.decorator';
 import { User } from 'src/core/decorators/user.decorator';
 import { LocalAuthGuard } from 'src/core/guards/local-auth.guard';
-import { AddUserDTO } from '@api/auth/entity/auth.dto';
+import { AddUserDTO, RecoveryPasswordDTO, LoginDTO } from '@api/auth/entity/auth.dto';
 import { AuthService } from './auth.service';
 import { AuthenticatedUser, iUser } from './entity/auth.interface';
 import { EmailValidationPipe } from 'src/core/pipes/email-validation.pipe';
 import { MinLengthPipe } from 'src/core/pipes/min-length.pipe';
+import { IsAdminGuard } from 'src/core/guards/is-admin.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -19,7 +20,7 @@ export class AuthController {
     @Public()
     @UseGuards(LocalAuthGuard)
     @Post('login')
-    async login(@User() user: iUser): Promise<{ message: string, publicKey: string } | AuthenticatedUser> {
+    async login(@Body() body: LoginDTO, @User() user: iUser): Promise<{ message: string, publicKey: string } | AuthenticatedUser> {
       const confirmationOtp = await this.authService.sendConfirmationLogin(user);
       // Risponde immediatamente al client con il token
       return { message: 'Confirmation email sent', publicKey: confirmationOtp.publicKey };
@@ -38,6 +39,7 @@ export class AuthController {
     }
 
     @Post('register')
+    @UseGuards(IsAdminGuard)
     async register(@Body() addUserDTO: AddUserDTO): Promise<iUser> {
       const generateRandomPassword = this.authService.generatePassword();
       const user = await this.authService.register(addUserDTO, generateRandomPassword);
@@ -46,16 +48,9 @@ export class AuthController {
     }
 
     @Public()
-    @Get('resend-confirm/:publicKey')
-    async resendConfirm(@Param('publicKey') publicKey: string): Promise<{ message: string, publicKey: string }> {
-      const updatedConfirmationOtp = await this.authService.resendConfirmationOtp(publicKey);
-      return { message: 'Confirmation email resent', publicKey: updatedConfirmationOtp.publicKey };
-    }
-
-    @Public()
-    @Get('send-recovery-password/:email')
-    async recoveryPassword(@Param('email', EmailValidationPipe) email: string): Promise<{ message: string }> {
-      await this.authService.sendRecoveryPassword(email);
+    @Post('send-recovery-password/:email')
+    async recoveryPassword(@Param('email', EmailValidationPipe) email: string, @Body() body: RecoveryPasswordDTO): Promise<{ message: string }> {
+      await this.authService.sendRecoveryPassword(email, body.folderParent);
       return { message: `New password sent to email ${email}` };
     }
 

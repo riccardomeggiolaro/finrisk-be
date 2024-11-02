@@ -31,6 +31,9 @@ export class User {
   role?: Role;
 
   @Prop()
+  folderParent?: string;
+
+  @Prop()
   abiCodeId?: string;
 
   @Prop()
